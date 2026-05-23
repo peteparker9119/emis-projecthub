@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const ROLES = [
@@ -58,10 +58,20 @@ const ROLES = [
   },
 ];
 
+function useClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
 export default function Login() {
   const { loginAs } = useAuth();
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState('');
+  const now = useClock();
 
   const handleLogin = async (role) => {
     setLoading(role);
@@ -95,7 +105,17 @@ export default function Login() {
             </div>
           </div>
           <div style={{ fontFamily: 'Fraunces, serif', fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Welcome back</div>
-          <div style={{ fontSize: 14, opacity: .75 }}>Select your role to continue</div>
+          <div style={{ fontSize: 14, opacity: .75, marginBottom: 16 }}>Select your role to continue</div>
+          {/* Live date + time */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 16, background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 40, padding: '8px 24px', backdropFilter: 'blur(8px)' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, opacity: .9 }}>
+              📅 {now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+            </span>
+            <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,.3)' }} />
+            <span style={{ fontSize: 15, fontWeight: 800, fontFamily: 'DM Mono, monospace', letterSpacing: 1 }}>
+              🕐 {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          </div>
         </div>
 
         {/* Role cards — 2 rows × 3 columns */}
