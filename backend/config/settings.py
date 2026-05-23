@@ -98,3 +98,16 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Email (Gmail SMTP) ────────────────────────────────────────────────────────
+# To enable: set EMIS_EMAIL_USER and EMIS_EMAIL_PASSWORD as environment variables
+# or fill in below. Use a Gmail App Password (not your regular password).
+import os
+EMAIL_BACKEND     = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST        = 'smtp.gmail.com'
+EMAIL_PORT        = 587
+EMAIL_USE_TLS     = True
+EMAIL_HOST_USER   = os.environ.get('EMIS_EMAIL_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMIS_EMAIL_PASSWORD', '')
+DEFAULT_FROM_EMAIL = f'EMIS ProjectHub <{EMAIL_HOST_USER}>'
+EMAIL_ENABLED     = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)

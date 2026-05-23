@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from users.models import User
 from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team
+from .utils import notify_mentions, notify_assignee_change
 from .serializers import (
     SprintSerializer, TaskSerializer, RequirementSerializer, RequirementGroomingSerializer,
     BugSerializer, IdeaSerializer, ActivitySerializer, ProjectSerializer,
@@ -112,9 +113,17 @@ def task_detail(request, pk):
         return Response(TaskSerializer(task).data)
 
     if request.method == 'PATCH':
+        prev_assignee_id = task.assignee_id
         serializer = TaskSerializer(task, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            updated = serializer.save()
+            new_assignee_id = request.data.get('assignee')
+            if new_assignee_id and str(new_assignee_id) != str(prev_assignee_id):
+                try:
+                    assignee = User.objects.get(pk=new_assignee_id)
+                    notify_assignee_change('task', updated.id, updated.title, assignee, request.user)
+                except User.DoesNotExist:
+                    pass
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -173,9 +182,18 @@ def requirement_detail(request, pk):
                     {'error': 'Only Scrum Masters can pull requirements into sprints'},
                     status=status.HTTP_403_FORBIDDEN
                 )
+        prev_assignee_id = req.assignee_id
         serializer = RequirementSerializer(req, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            updated = serializer.save()
+            # Notify new assignee if assignee changed
+            new_assignee_id = request.data.get('assignee')
+            if new_assignee_id and str(new_assignee_id) != str(prev_assignee_id):
+                try:
+                    assignee = User.objects.get(pk=new_assignee_id)
+                    notify_assignee_change('requirement', updated.id, updated.title, assignee, request.user)
+                except User.DoesNotExist:
+                    pass
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -231,7 +249,15 @@ def req_comments(request, pk):
         data['author'] = request.user.id
     serializer = RequirementCommentSerializer(data=data)
     if serializer.is_valid():
-        serializer.save()
+        comment = serializer.save()
+        # Notify @mentioned users
+        notify_mentions(
+            text=comment.text,
+            sender=request.user,
+            item_type='requirement',
+            item_id=pk,
+            context_label=f'Requirement — {req.title}',
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -506,9 +532,17 @@ def bug_detail(request, pk):
         return Response(BugSerializer(bug).data)
 
     if request.method == 'PATCH':
+        prev_assignee_id = bug.assignee_id
         serializer = BugSerializer(bug, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            updated = serializer.save()
+            new_assignee_id = request.data.get('assignee')
+            if new_assignee_id and str(new_assignee_id) != str(prev_assignee_id):
+                try:
+                    assignee = User.objects.get(pk=new_assignee_id)
+                    notify_assignee_change('bug', updated.id, updated.title, assignee, request.user)
+                except User.DoesNotExist:
+                    pass
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1100,7 +1134,15 @@ def pm_work_comments(request, pk):
         data['author'] = request.user.id
     serializer = PMWorkEntryCommentSerializer(data=data)
     if serializer.is_valid():
-        serializer.save()
+        comment = serializer.save()
+        # Notify @mentioned users
+        notify_mentions(
+            text=comment.text,
+            sender=request.user,
+            item_type='general',
+            item_id=pk,
+            context_label=f'PM Work Log — {entry.title}',
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
