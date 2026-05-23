@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem
 
 
 class SprintSerializer(serializers.ModelSerializer):
@@ -68,6 +68,7 @@ class RequirementSerializer(serializers.ModelSerializer):
     grooming_status = serializers.SerializerMethodField()
     timer_status = serializers.SerializerMethodField()
     days_remaining = serializers.SerializerMethodField()
+    epic_title = serializers.SerializerMethodField()
 
     class Meta:
         model = Requirement
@@ -75,7 +76,9 @@ class RequirementSerializer(serializers.ModelSerializer):
             'id', 'title', 'item_type', 'priority', 'status',
             'assignee', 'assignee_name',
             'sprint', 'sprint_name',
-            'description', 'department', 'parent', 'parent_id', 'parent_title',
+            'description', 'department',
+            'epic', 'epic_title',
+            'parent', 'parent_id', 'parent_title',
             'start_date', 'end_date', 'story_points', 'breach_notified',
             'timer_status', 'days_remaining',
             'children_count', 'total_logged_hours', 'comment_count', 'attachment_count',
@@ -134,6 +137,59 @@ class RequirementSerializer(serializers.ModelSerializer):
         if not obj.end_date:
             return None
         return (obj.end_date - date.today()).days
+
+    def get_epic_title(self, obj):
+        return obj.epic.title if obj.epic else None
+
+
+class EpicSerializer(serializers.ModelSerializer):
+    created_by_name   = serializers.SerializerMethodField()
+    project_name      = serializers.SerializerMethodField()
+    requirement_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Epic
+        fields = ['id','title','description','status','priority','project','project_name',
+                  'created_by','created_by_name','start_date','end_date','created_at','requirement_count']
+        read_only_fields = ['id','created_at']
+
+    def get_created_by_name(self, obj): return obj.created_by.name if obj.created_by else None
+    def get_project_name(self, obj): return obj.project.name if obj.project else None
+    def get_requirement_count(self, obj): return obj.requirements.count()
+
+
+class ReleaseItemSerializer(serializers.ModelSerializer):
+    req_title  = serializers.SerializerMethodField()
+    req_type   = serializers.SerializerMethodField()
+    req_status = serializers.SerializerMethodField()
+    added_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReleaseItem
+        fields = ['id','release','requirement','req_title','req_type','req_status','added_by','added_by_name','notes','added_at']
+        read_only_fields = ['id','added_at']
+
+    def get_req_title(self, obj): return obj.requirement.title
+    def get_req_type(self, obj): return obj.requirement.item_type
+    def get_req_status(self, obj): return obj.requirement.status
+    def get_added_by_name(self, obj): return obj.added_by.name if obj.added_by else None
+
+
+class ReleaseSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    sprint_name     = serializers.SerializerMethodField()
+    item_count      = serializers.SerializerMethodField()
+    items           = ReleaseItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Release
+        fields = ['id','name','version','sprint','sprint_name','description','status',
+                  'created_by','created_by_name','released_at','created_at','item_count','items']
+        read_only_fields = ['id','created_at']
+
+    def get_created_by_name(self, obj): return obj.created_by.name if obj.created_by else None
+    def get_sprint_name(self, obj): return obj.sprint.name if obj.sprint else None
+    def get_item_count(self, obj): return obj.items.count()
 
 
 class RequirementGroomingSerializer(serializers.ModelSerializer):

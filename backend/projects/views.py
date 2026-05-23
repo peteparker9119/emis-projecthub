@@ -6,14 +6,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from users.models import User
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem
 from .serializers import (
     SprintSerializer, TaskSerializer, RequirementSerializer, RequirementGroomingSerializer,
     BugSerializer, IdeaSerializer, ActivitySerializer, ProjectSerializer,
     RequirementCommentSerializer, WorkLogSerializer, RequirementAttachmentSerializer,
     StandupSerializer, NotificationSerializer,
     PMWorkEntrySerializer, PMWorkEntryAttachmentSerializer, PMWorkEntryCommentSerializer,
-    MeetingSerializer, ScrumAlertSerializer,
+    MeetingSerializer, ScrumAlertSerializer, EpicSerializer, ReleaseSerializer, ReleaseItemSerializer,
 )
 
 
@@ -1312,3 +1312,124 @@ def notify_breaches(request):
         count += 1
 
     return Response({'notified': count})
+
+
+# ---------------------------------------------------------------------------
+# Epics
+# ---------------------------------------------------------------------------
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def epic_list(request):
+    if request.method == 'GET':
+        qs = Epic.objects.select_related('created_by', 'project').all()
+        serializer = EpicSerializer(qs, many=True)
+        return Response(serializer.data)
+    if request.user.role not in ('Product Manager', 'PM Team Lead'):
+        return Response({'error': 'Only PMs and TLs can create epics'}, status=status.HTTP_403_FORBIDDEN)
+    serializer = EpicSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def epic_detail(request, pk):
+    try:
+        epic = Epic.objects.select_related('created_by', 'project').get(pk=pk)
+    except Epic.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'GET':
+        return Response(EpicSerializer(epic).data)
+    if request.method == 'PATCH':
+        if request.user.role not in ('Product Manager', 'PM Team Lead'):
+            return Response({'error': 'Only PMs and TLs can edit epics'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = EpicSerializer(epic, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.user.role not in ('Product Manager', 'PM Team Lead'):
+        return Response({'error': 'Only PMs and TLs can delete epics'}, status=status.HTTP_403_FORBIDDEN)
+    epic.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Releases
+# ---------------------------------------------------------------------------
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def release_list(request):
+    if request.method == 'GET':
+        qs = Release.objects.select_related('created_by', 'sprint').prefetch_related('items__requirement').all()
+        return Response(ReleaseSerializer(qs, many=True).data)
+    if request.user.role != 'Scrum Master':
+        return Response({'error': 'Only SM can create releases'}, status=status.HTTP_403_FORBIDDEN)
+    serializer = ReleaseSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def release_detail(request, pk):
+    try:
+        release = Release.objects.select_related('created_by', 'sprint').prefetch_related('items__requirement').get(pk=pk)
+    except Release.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'GET':
+        return Response(ReleaseSerializer(release).data)
+    if request.method == 'PATCH':
+        if request.user.role != 'Scrum Master':
+            return Response({'error': 'Only SM can edit releases'}, status=status.HTTP_403_FORBIDDEN)
+        s = ReleaseSerializer(release, data=request.data, partial=True)
+        if s.is_valid():
+            s.save()
+            return Response(s.data)
+        return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.user.role != 'Scrum Master':
+        return Response({'error': 'Only SM can delete releases'}, status=status.HTTP_403_FORBIDDEN)
+    release.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def release_add_item(request, pk):
+    """SM adds a completed requirement to a release"""
+    if request.user.role != 'Scrum Master':
+        return Response({'error': 'Only SM can push items to releases'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        release = Release.objects.get(pk=pk)
+    except Release.DoesNotExist:
+        return Response({'error': 'Release not found'}, status=status.HTTP_404_NOT_FOUND)
+    req_id = request.data.get('requirement_id')
+    notes  = request.data.get('notes', '')
+    try:
+        req = Requirement.objects.get(pk=req_id)
+    except Requirement.DoesNotExist:
+        return Response({'error': 'Requirement not found'}, status=status.HTTP_404_NOT_FOUND)
+    item, created = ReleaseItem.objects.get_or_create(
+        release=release, requirement=req,
+        defaults={'added_by': request.user, 'notes': notes}
+    )
+    return Response(ReleaseItemSerializer(item).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def release_remove_item(request, pk, item_id):
+    if request.user.role != 'Scrum Master':
+        return Response({'error': 'Only SM can remove items from releases'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        item = ReleaseItem.objects.get(pk=item_id, release_id=pk)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except ReleaseItem.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)

@@ -82,4 +82,14 @@ urlpatterns = [
     path('notifications/<int:pk>/read/', views.notification_read, name='notification-read'),
     path('notifications/read-all/', views.notification_read_all, name='notification-read-all'),
     path('notifications/unread-count/', views.notification_unread_count, name='notification-unread-count'),
+
+    # Epics
+    path('epics/', views.epic_list, name='epic-list'),
+    path('epics/<str:pk>/', views.epic_detail, name='epic-detail'),
+
+    # Releases
+    path('releases/', views.release_list, name='release-list'),
+    path('releases/<str:pk>/', views.release_detail, name='release-detail'),
+    path('releases/<str:pk>/items/', views.release_add_item, name='release-add-item'),
+    path('releases/<str:pk>/items/<int:item_id>/', views.release_remove_item, name='release-remove-item'),
 ]

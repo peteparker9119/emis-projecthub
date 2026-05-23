@@ -25,6 +25,8 @@ import PMDailyLog from './pages/PMDailyLog';
 import PMActivity from './pages/PMActivity';
 import Meetings from './pages/Meetings';
 import KanbanBoard from './pages/KanbanBoard';
+import Epics from './pages/Epics';
+import Releases from './pages/Releases';
 
 const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '📢' };
 const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
@@ -132,6 +134,8 @@ function AppShell() {
       case 'pmactivity':    return <PMActivity />;
       case 'meetings':      return <Meetings />;
       case 'kanban':        return <KanbanBoard />;
+      case 'epics':         return <Epics />;
+      case 'releases':      return <Releases />;
       case 'profile':       return <Profile />;
       default:              return <Dashboard onNavigate={setPage} />;
     }

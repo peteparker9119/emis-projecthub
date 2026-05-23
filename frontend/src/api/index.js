@@ -124,3 +124,17 @@ export const createNotification = (data) => api.post('/projects/notifications/',
 export const markNotificationRead = (id) => api.patch(`/projects/notifications/${id}/read/`, {});
 export const markAllNotificationsRead = () => api.post('/projects/notifications/read-all/', {});
 export const getUnreadCount = () => api.get('/projects/notifications/unread-count/');
+
+// Epics
+export const getEpics = (params) => api.get('/projects/epics/', { params });
+export const createEpic = (data) => api.post('/projects/epics/', data);
+export const updateEpic = (id, data) => api.patch(`/projects/epics/${id}/`, data);
+export const deleteEpic = (id) => api.delete(`/projects/epics/${id}/`);
+
+// Releases
+export const getReleases = (params) => api.get('/projects/releases/', { params });
+export const createRelease = (data) => api.post('/projects/releases/', data);
+export const updateRelease = (id, data) => api.patch(`/projects/releases/${id}/`, data);
+export const deleteRelease = (id) => api.delete(`/projects/releases/${id}/`);
+export const addToRelease = (id, data) => api.post(`/projects/releases/${id}/items/`, data);
+export const removeFromRelease = (id, itemId) => api.delete(`/projects/releases/${id}/items/${itemId}/`);

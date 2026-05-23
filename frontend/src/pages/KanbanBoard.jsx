@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getRequirements, updateRequirement, getSprints, getUsers } from '../api';
+import { getRequirements, updateRequirement, getSprints, getUsers, createRequirement, createSprint } from '../api';
+import { useAuth } from '../context/AuthContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ function TimerBadge({ timerStatus, daysRemaining }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function KanbanBoard() {
+  const { user } = useAuth();
   const [reqs,     setReqs]     = useState([]);
   const [sprints,  setSprints]  = useState([]);
   const [users,    setUsers]    = useState([]);
@@ -94,6 +96,14 @@ export default function KanbanBoard() {
 
   // Detail panel
   const [panel, setPanel] = useState(null); // req object
+
+  // Quick add modal
+  const [quickAdd, setQuickAdd] = useState(null); // { status: col.status }
+
+  // New sprint board modal (SM only)
+  const [sprintModal, setSprintModal] = useState(false);
+
+  const isSM = user?.role === 'Scrum Master';
 
   // ── Load ─────────────────────────────────────────────────────────────────
 
@@ -192,9 +202,16 @@ export default function KanbanBoard() {
               {totalAtRisk   > 0 && <span style={{ color: '#ea580c', fontWeight: 600 }}> · {totalAtRisk} at-risk</span>}
             </p>
           </div>
-          <button onClick={loadData} style={{ padding: '8px 16px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-            ↻ Refresh
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {isSM && (
+              <button onClick={() => setSprintModal(true)} style={{ padding: '8px 16px', border: 'none', borderRadius: 8, background: 'linear-gradient(135deg,#1a56db,#0d9488)', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                + New Sprint Board
+              </button>
+            )}
+            <button onClick={loadData} style={{ padding: '8px 16px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+              ↻ Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -294,13 +311,24 @@ export default function KanbanBoard() {
                       }}
                     >
                       {/* Cards */}
-                      <div className="anim-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 10px 12px' }}>
+                      <div className="anim-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 10px 4px' }}>
                         {colItems.length === 0 && (
                           <div style={{ textAlign: 'center', padding: '18px 0', color: 'var(--text3)', fontSize: 12, fontStyle: 'italic' }}>
                             {isOver ? '⬇ Drop here' : 'Empty'}
                           </div>
                         )}
                         {colItems.map(r => <KanbanCard key={r.id} r={r} dragId={dragId} setDragId={setDragId} setDragOver={setDragOver} onOpen={() => setPanel(r)} />)}
+                      </div>
+                      {/* + Add button */}
+                      <div style={{ padding: '4px 10px 10px' }}>
+                        <button
+                          onClick={() => setQuickAdd({ status: col.status })}
+                          style={{ width: '100%', padding: '6px 0', border: `1.5px dashed ${col.border}`, borderRadius: 8, background: 'transparent', color: col.color, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: 0.7, transition: 'opacity .15s' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                          onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
+                        >
+                          + Add
+                        </button>
                       </div>
                     </div>
                   );
@@ -318,6 +346,28 @@ export default function KanbanBoard() {
           onClose={() => setPanel(null)}
           onStatusChange={(id, s) => quickStatus(id, s)}
           onRefresh={() => { loadData(); setPanel(null); }}
+        />
+      )}
+
+      {/* ── Quick Add Modal ───────────────────────────────────────── */}
+      {quickAdd && (
+        <QuickAddModal
+          initialStatus={quickAdd.status}
+          sprints={sprints}
+          onClose={() => setQuickAdd(null)}
+          onSaved={() => { setQuickAdd(null); loadData(); }}
+        />
+      )}
+
+      {/* ── New Sprint Board Modal (SM only) ─────────────────────── */}
+      {sprintModal && (
+        <NewSprintModal
+          onClose={() => setSprintModal(false)}
+          onCreated={(sprint) => {
+            setSprintModal(false);
+            setSprints(prev => [...prev, sprint]);
+            setFilterSprint(String(sprint.id));
+          }}
         />
       )}
     </div>
@@ -538,5 +588,168 @@ function DetailPanel({ req, onClose, onStatusChange, onRefresh }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ── Quick Add Modal ───────────────────────────────────────────────────────────
+
+function QuickAddModal({ initialStatus, sprints, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    title: '',
+    item_type: 'REQ',
+    priority: 'Medium',
+    status: initialStatus,
+    sprint: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const F = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const handleSave = async () => {
+    if (!form.title.trim()) { setErr('Title is required'); return; }
+    setSaving(true);
+    try {
+      await createRequirement({
+        title: form.title.trim(),
+        item_type: form.item_type,
+        priority: form.priority,
+        status: form.status,
+        sprint: form.sprint || null,
+      });
+      onSaved();
+    } catch (e) {
+      setErr(e?.response?.data?.title?.[0] || e?.response?.data?.detail || 'Save failed');
+      setSaving(false);
+    }
+  };
+
+  const col = COLUMNS.find(c => c.status === form.status) || COLUMNS[0];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'white', borderRadius: 18, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 24px 80px rgba(0,0,0,.2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>+ Quick Add Item</div>
+            <div style={{ fontSize: 12, color: col.color, fontWeight: 600, marginTop: 2 }}>{col.icon} {col.label}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text2)' }}>×</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Title *</label>
+            <input
+              value={form.title}
+              onChange={F('title')}
+              placeholder="Enter item title…"
+              autoFocus
+              style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Type</label>
+              <select value={form.item_type} onChange={F('item_type')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+                {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Priority</label>
+              <select value={form.priority} onChange={F('priority')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+                {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Sprint (optional)</label>
+            <select value={form.sprint} onChange={F('sprint')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+              <option value="">— No sprint —</option>
+              {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 10 }}>{err}</div>}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--surface2)', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 22px', borderRadius: 8, border: 'none', background: `linear-gradient(135deg,${col.color},${col.color}cc)`, color: 'white', fontWeight: 700, fontSize: 13, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+            {saving ? 'Creating…' : 'Create Item'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── New Sprint Board Modal ────────────────────────────────────────────────────
+
+function NewSprintModal({ onClose, onCreated }) {
+  const today = new Date().toISOString().split('T')[0];
+  const twoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
+  const [form, setForm] = useState({ name: '', start_date: today, end_date: twoWeeks });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const F = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const handleCreate = async () => {
+    if (!form.name.trim()) { setErr('Sprint name is required'); return; }
+    if (!form.start_date || !form.end_date) { setErr('Start and end dates are required'); return; }
+    setSaving(true);
+    try {
+      const res = await createSprint({ name: form.name.trim(), start_date: form.start_date, end_date: form.end_date });
+      onCreated(res.data);
+    } catch (e) {
+      setErr(e?.response?.data?.name?.[0] || e?.response?.data?.detail || 'Create failed');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'white', borderRadius: 18, padding: 28, width: 460, maxWidth: '95vw', boxShadow: '0 24px 80px rgba(0,0,0,.2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>🏃 New Sprint Board</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text2)' }}>×</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Sprint Name *</label>
+            <input
+              value={form.name}
+              onChange={F('name')}
+              placeholder="e.g. Sprint 12 – Q2 Feature Push"
+              autoFocus
+              style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Start Date *</label>
+              <input type="date" value={form.start_date} onChange={F('start_date')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>End Date *</label>
+              <input type="date" value={form.end_date} onChange={F('end_date')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+        </div>
+
+        {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 10 }}>{err}</div>}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--surface2)', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={handleCreate} disabled={saving} style={{ padding: '8px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#1a56db,#0d9488)', color: 'white', fontWeight: 700, fontSize: 13, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+            {saving ? 'Creating…' : 'Create Sprint'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -245,6 +245,10 @@ export default function ScrumMaster() {
   const [showOnlyMissing, setShowOnlyMissing]   = useState(false);
   const [sentCount, setSentCount]               = useState(0);
 
+  // Daily tasks tab
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [memberHistory, setMemberHistory]   = useState(null); // standups for selected member
+
   // Scrum Alert push
   const [alertForm, setAlertForm]       = useState({ alert_type: 'standup', message: '' });
   const [alertSending, setAlertSending] = useState(false);
@@ -401,10 +405,11 @@ export default function ScrumMaster() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap' }}>
         {TAB('standup', '📅 Daily Standup')}
         {TAB('pipeline', `🔄 Grooming Pipeline${readyReqs.length > 0 ? ` (${readyReqs.length} ready)` : ''}`, () => setPipelineModal(true))}
         {TAB('breach', `🚨 Breach Alerts${breached.length > 0 ? ` (${breached.length})` : ''}`)}
+        {TAB('dailytasks', '📋 Daily Tasks')}
       </div>
 
       {/* ═══ STANDUP TAB ═══════════════════════════════════════════════════════ */}
@@ -522,6 +527,128 @@ export default function ScrumMaster() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ DAILY TASKS TAB ════════════════════════════════════════════════ */}
+      {tab === 'dailytasks' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 18, alignItems: 'start' }}>
+          {/* Left: member list */}
+          <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', fontWeight: 700, fontSize: 13 }}>
+              👥 Team Members
+            </div>
+            <div>
+              {teamMembers.map(m => (
+                <div
+                  key={m.id}
+                  onClick={() => { setSelectedMember(m); setMemberHistory(null); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
+                    cursor: 'pointer', borderBottom: '1px solid var(--border)',
+                    background: selectedMember?.id === m.id ? '#eff6ff' : 'white',
+                    transition: 'background .12s',
+                  }}
+                  onMouseEnter={e => { if (selectedMember?.id !== m.id) e.currentTarget.style.background = 'var(--surface)'; }}
+                  onMouseLeave={e => { if (selectedMember?.id !== m.id) e.currentTarget.style.background = 'white'; }}
+                >
+                  <Avatar initials={m.initials} size={34}
+                    bg={m.submitted_today ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#9ca3af,#6b7280)'} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text2)' }}>{m.role || `Team ${m.team}`}</div>
+                  </div>
+                  <span style={{ fontSize: 14 }}>{m.submitted_today ? '✅' : '⬜'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: standup detail for selected member */}
+          <div>
+            {!selectedMember ? (
+              <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--border)', padding: '48px 32px', textAlign: 'center', color: 'var(--text3)' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Select a team member</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>View their daily standup details here</div>
+              </div>
+            ) : (
+              <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                {/* Member header */}
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Avatar initials={selectedMember.initials} size={42}
+                    bg={selectedMember.submitted_today ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#9ca3af,#6b7280)'} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedMember.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text2)' }}>{selectedMember.role || `Team ${selectedMember.team}`}</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: selectedMember.submitted_today ? '#d1fae5' : '#fef2f2', color: selectedMember.submitted_today ? '#065f46' : '#dc2626' }}>
+                    {selectedMember.submitted_today ? '✅ Submitted Today' : '🔴 Not Submitted'}
+                  </span>
+                </div>
+
+                {/* Standup content */}
+                {selectedMember.standup ? (
+                  <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                    {[
+                      { label: '📅 Yesterday', key: 'yesterday', color: '#1d4ed8', bg: '#eff6ff' },
+                      { label: '⚡ Today',     key: 'today',     color: '#15803d', bg: '#f0fdf4' },
+                      { label: '🚧 Blockers',  key: 'blockers',  color: '#dc2626', bg: '#fef2f2' },
+                    ].map(({ label, key, color, bg }) => (
+                      <div key={key}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>{label}</div>
+                        <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', background: bg, borderRadius: 10, padding: '12px 16px', whiteSpace: 'pre-wrap', minHeight: 40 }}>
+                          {selectedMember.standup[key] || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>Not provided</span>}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* View all history link */}
+                    <div style={{ paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { getStandups } = await import('../api');
+                            const res = await getStandups({ user: selectedMember.id });
+                            setMemberHistory(res.data);
+                          } catch {}
+                        }}
+                        style={{ padding: '7px 16px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text2)', fontFamily: 'inherit' }}
+                      >
+                        📋 View All Standups
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '32px 22px', textAlign: 'center', color: 'var(--text3)' }}>
+                    <div style={{ fontSize: 30, marginBottom: 8 }}>📝</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>No standup submitted today</div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}>Check back after the daily standup session</div>
+                  </div>
+                )}
+
+                {/* Standup history */}
+                {memberHistory && memberHistory.length > 0 && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '16px 22px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>📋 Standup History ({memberHistory.length})</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto' }}>
+                      {memberHistory.map(s => (
+                        <div key={s.id} style={{ background: 'var(--surface)', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', padding: '2px 8px', borderRadius: 8 }}>{s.date}</span>
+                            {s.sprint_name && <span style={{ fontSize: 10, color: 'var(--text3)' }}>🏃 {s.sprint_name}</span>}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4 }}><strong style={{ color: 'var(--text)' }}>Today:</strong> {s.today}</div>
+                          {s.yesterday && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4 }}><strong style={{ color: 'var(--text)' }}>Yesterday:</strong> {s.yesterday}</div>}
+                          {s.blockers && <div style={{ fontSize: 12, color: '#dc2626' }}><strong>🚧 Blockers:</strong> {s.blockers}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

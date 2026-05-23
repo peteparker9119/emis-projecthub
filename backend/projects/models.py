@@ -132,6 +132,7 @@ class Requirement(models.Model):
     )
     description = models.TextField(blank=True)
     department = models.CharField(max_length=20, choices=DEPARTMENT_CHOICES, blank=True)
+    epic = models.ForeignKey('Epic', on_delete=models.SET_NULL, null=True, blank=True, related_name='requirements')
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     story_points = models.IntegerField(null=True, blank=True)
@@ -387,6 +388,76 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.id}: {self.name}"
+
+
+class Epic(models.Model):
+    PRIORITY_CHOICES = [
+        ('Critical', 'Critical'), ('High', 'High'), ('Medium', 'Medium'), ('Low', 'Low'),
+    ]
+    STATUS_CHOICES = [
+        ('Planning', 'Planning'), ('In Progress', 'In Progress'), ('Done', 'Done'), ('On Hold', 'On Hold'),
+    ]
+    id          = models.CharField(max_length=20, primary_key=True)
+    title       = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Planning')
+    priority    = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='Medium')
+    project     = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True, blank=True, related_name='epics')
+    created_by  = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='epics')
+    start_date  = models.DateField(null=True, blank=True)
+    end_date    = models.DateField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'epics'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = _next_id(Epic, 'EPIC')
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.id}: {self.title}"
+
+
+class Release(models.Model):
+    STATUS_CHOICES = [
+        ('Draft', 'Draft'), ('Published', 'Published'), ('Archived', 'Archived'),
+    ]
+    id          = models.CharField(max_length=20, primary_key=True)
+    name        = models.CharField(max_length=200)
+    version     = models.CharField(max_length=50, blank=True)
+    sprint      = models.ForeignKey(Sprint, on_delete=models.SET_NULL, null=True, blank=True, related_name='releases')
+    description = models.TextField(blank=True)
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
+    created_by  = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='releases')
+    released_at = models.DateField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'releases'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = _next_id(Release, 'REL')
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.id}: {self.name}"
+
+
+class ReleaseItem(models.Model):
+    release     = models.ForeignKey(Release, on_delete=models.CASCADE, related_name='items')
+    requirement = models.ForeignKey(Requirement, on_delete=models.CASCADE, related_name='release_items')
+    added_by    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    notes       = models.TextField(blank=True)
+    added_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'release_items'
+        unique_together = ('release', 'requirement')
 
 
 class Standup(models.Model):
