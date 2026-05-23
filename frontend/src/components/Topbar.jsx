@@ -142,8 +142,18 @@ function NotificationBell() {
   );
 }
 
+function useClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
 export default function Topbar({ currentPage, onNavigate }) {
   const { user, logout } = useAuth();
+  const now = useClock();
   const effectiveRoleKey =
     user?.role === 'Scrum Master'    ? 'SM' :
     user?.role === 'PM Team Lead'    ? 'TL' :
@@ -159,6 +169,17 @@ export default function Topbar({ currentPage, onNavigate }) {
     }}>
       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Fraunces, serif' }}>
         {PAGE_TITLES[currentPage] || 'Dashboard'}
+      </div>
+
+      {/* Live date + time — center */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 30, padding: '5px 16px' }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text2)' }}>
+          📅 {now.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+        <span style={{ width: 1, height: 14, background: 'var(--border)' }} />
+        <span style={{ fontSize: 12.5, fontWeight: 800, fontFamily: 'DM Mono, monospace', letterSpacing: 1, color: 'var(--text)' }}>
+          🕐 {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
