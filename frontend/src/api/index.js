@@ -104,6 +104,19 @@ export const createPMWorkComment = (id, data) => api.post(`/projects/pm-work/${i
 export const deletePMWorkComment = (id, cId) => api.delete(`/projects/pm-work/${id}/comments/${cId}/`);
 export const getPMWorkSummary = (date) => api.get('/projects/pm-work/summary/', { params: { date } });
 
+// Meetings
+export const getMeetings      = (params) => api.get('/projects/meetings/', { params });
+export const createMeeting    = (data)   => api.post('/projects/meetings/', data);
+export const getMeeting       = (id)     => api.get(`/projects/meetings/${id}/`);
+export const updateMeeting    = (id, data) => api.patch(`/projects/meetings/${id}/`, data);
+export const deleteMeeting    = (id)     => api.delete(`/projects/meetings/${id}/`);
+
+// Scrum Alerts
+export const getScrumAlerts       = ()     => api.get('/projects/scrum-alerts/');
+export const createScrumAlert     = (data) => api.post('/projects/scrum-alerts/', data);
+export const getLatestScrumAlert  = ()     => api.get('/projects/scrum-alerts/latest/');
+export const deactivateScrumAlert = (id)   => api.post(`/projects/scrum-alerts/${id}/deactivate/`, {});
+
 // Notifications
 export const getNotifications = () => api.get('/projects/notifications/');
 export const createNotification = (data) => api.post('/projects/notifications/', data);

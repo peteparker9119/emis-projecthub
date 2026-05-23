@@ -70,6 +70,15 @@ urlpatterns = [
     path('pm-work/<int:pk>/comments/', views.pm_work_comments, name='pm-work-comments'),
     path('pm-work/<int:pk>/comments/<int:comment_id>/', views.pm_work_comment_detail, name='pm-work-comment-detail'),
 
+    # Meetings
+    path('meetings/',              views.meeting_list,           name='meeting-list'),
+    path('meetings/<str:pk>/',     views.meeting_detail,         name='meeting-detail'),
+
+    # Scrum Alerts
+    path('scrum-alerts/',                     views.scrum_alert_list,       name='scrum-alert-list'),
+    path('scrum-alerts/latest/',              views.scrum_alert_latest,     name='scrum-alert-latest'),
+    path('scrum-alerts/<int:pk>/deactivate/', views.scrum_alert_deactivate, name='scrum-alert-deactivate'),
+
     # Notifications
     path('notifications/', views.notification_list, name='notification-list'),
     path('notifications/<int:pk>/read/', views.notification_read, name='notification-read'),

@@ -12,6 +12,7 @@ const ALL_MENUS = [
   { id: 'bugs',          label: 'Bugs',              icon: '🐛', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
   { id: 'ideas',         label: 'Ideas',             icon: '💡', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
+  { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
 
   // ── Personal ──────────────────────────────────────────────────
   { id: 'mytasks',       label: 'My Tasks',          icon: '📌', section: 'Personal',    roles: ['MANAGER','EMPLOYEE'] },
@@ -29,6 +30,7 @@ const ALL_MENUS = [
   { id: 'menubuilder',   label: 'Menu Builder',      icon: '🧩', section: 'CTO Command', roles: ['CTO'] },
   { id: 'admin',         label: 'Admin Controls',    icon: '🛡️', section: 'CTO Command', roles: ['CTO'] },
   { id: 'pmactivity',    label: 'PM Activity',       icon: '📊', section: 'CTO Command', roles: ['CTO'] },
+  { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'CTO Command', roles: ['CTO'] },
 
   // ── Scrum Master ──────────────────────────────────────────────
   { id: 'scrummaster',   label: 'SM Dashboard',      icon: '🏆', section: 'Scrum',       roles: ['SM'] },
@@ -37,6 +39,7 @@ const ALL_MENUS = [
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'Scrum',       roles: ['SM'] },
   { id: 'pmactivity',    label: 'PM Activity',       icon: '📊', section: 'Scrum',       roles: ['SM'] },
   { id: 'members',       label: 'Team Members',      icon: '👥', section: 'Scrum',       roles: ['SM'] },
+  { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'Scrum',       roles: ['SM'] },
   { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'My Work',     roles: ['SM'] },
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['SM'] },
 
@@ -45,6 +48,7 @@ const ALL_MENUS = [
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'PM Work',     roles: ['PM'] },
   { id: 'requirements',  label: 'Requirements',      icon: '📋', section: 'PM Work',     roles: ['PM'] },
   { id: 'sprints',       label: 'Sprints',           icon: '🏃', section: 'PM Work',     roles: ['PM'] },
+  { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'PM Work',     roles: ['PM'] },
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['PM'] },
 ];
 

@@ -506,5 +506,72 @@ class Activity(models.Model):
         db_table = 'activities'
         ordering = ['-created_at']
 
+
+class Meeting(models.Model):
+    MEETING_TYPE_CHOICES = [
+        ('standup',         'Daily Standup'),
+        ('sprint_planning', 'Sprint Planning'),
+        ('sprint_review',   'Sprint Review'),
+        ('retrospective',   'Retrospective'),
+        ('grooming',        'Grooming Session'),
+        ('stakeholder',     'Stakeholder Meeting'),
+        ('one_on_one',      '1-on-1'),
+        ('technical',       'Technical Discussion'),
+        ('general',         'General Meeting'),
+    ]
+
+    id             = models.CharField(max_length=10, primary_key=True, editable=False)
+    title          = models.CharField(max_length=300)
+    meeting_type   = models.CharField(max_length=20, choices=MEETING_TYPE_CHOICES, default='general')
+    color          = models.CharField(max_length=10, default='#1a56db')
+    start_datetime = models.DateTimeField()
+    end_datetime   = models.DateTimeField()
+    description    = models.TextField(blank=True)
+    location       = models.CharField(max_length=300, blank=True)
+    created_by     = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_meetings'
+    )
+    attendees      = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='meetings'
+    )
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'meetings'
+        ordering = ['start_datetime']
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = _next_id(Meeting, 'MTG')
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.id}: {self.title}"
+
+
+class ScrumAlert(models.Model):
+    ALERT_TYPE_CHOICES = [
+        ('standup', 'Standup Time'),
+        ('breach',  'Sprint Breach'),
+        ('urgent',  'Urgent'),
+        ('info',    'General Info'),
+    ]
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='scrum_alerts'
+    )
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPE_CHOICES, default='standup')
+    message    = models.TextField()
+    is_active  = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'scrum_alerts'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Alert [{self.alert_type}] by {self.created_by}: {self.message[:60]}"
+
     def __str__(self):
         return f"{self.text[:60]}"

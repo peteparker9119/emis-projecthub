@@ -6,13 +6,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from users.models import User
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert
 from .serializers import (
     SprintSerializer, TaskSerializer, RequirementSerializer, RequirementGroomingSerializer,
     BugSerializer, IdeaSerializer, ActivitySerializer, ProjectSerializer,
     RequirementCommentSerializer, WorkLogSerializer, RequirementAttachmentSerializer,
     StandupSerializer, NotificationSerializer,
     PMWorkEntrySerializer, PMWorkEntryAttachmentSerializer, PMWorkEntryCommentSerializer,
+    MeetingSerializer, ScrumAlertSerializer,
 )
 
 
@@ -1132,3 +1133,131 @@ def pm_work_summary(request):
             'entries': PMWorkEntrySerializer(entries, many=True, context={'request': request}).data,
         })
     return Response({'date': target_date, 'pms': result})
+
+
+# ---------------------------------------------------------------------------
+# Meetings
+# ---------------------------------------------------------------------------
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def meeting_list(request):
+    if request.method == 'GET':
+        from datetime import datetime, timedelta
+        qs = Meeting.objects.prefetch_related('attendees').select_related('created_by').all()
+        week_start = request.query_params.get('week_start')
+        if week_start:
+            try:
+                start = datetime.fromisoformat(week_start)
+                end   = start + timedelta(days=7)
+                qs = qs.filter(start_datetime__gte=start, start_datetime__lt=end)
+            except ValueError:
+                pass
+        return Response(MeetingSerializer(qs, many=True).data)
+
+    # POST — PM and SM can create meetings
+    allowed_roles = ('Product Manager', 'Scrum Master')
+    if getattr(request.user, 'role', '') not in allowed_roles:
+        return Response({'error': 'Only Product Managers and Scrum Masters can create meetings'}, status=status.HTTP_403_FORBIDDEN)
+
+    from django.utils.dateparse import parse_datetime
+    start_dt = parse_datetime(request.data.get('start_datetime', ''))
+    end_dt   = parse_datetime(request.data.get('end_datetime', ''))
+    if start_dt and end_dt:
+        overlap = Meeting.objects.filter(created_by=request.user).filter(
+            Q(start_datetime__lt=end_dt) & Q(end_datetime__gt=start_dt)
+        )
+        if overlap.exists():
+            return Response({'error': 'You already have a meeting overlapping this time slot'}, status=status.HTTP_409_CONFLICT)
+
+    data = request.data.copy()
+    data['created_by'] = request.user.id
+    serializer = MeetingSerializer(data=data)
+    if serializer.is_valid():
+        meeting = serializer.save()
+        return Response(MeetingSerializer(meeting).data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def meeting_detail(request, pk):
+    try:
+        meeting = Meeting.objects.prefetch_related('attendees').select_related('created_by').get(pk=pk)
+    except Meeting.DoesNotExist:
+        return Response({'error': 'Meeting not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(MeetingSerializer(meeting).data)
+
+    # Only creator or CTO can modify/delete
+    is_cto = getattr(request.user, 'perfiq', '') == 'CTO'
+    if meeting.created_by != request.user and not is_cto:
+        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'PATCH':
+        from django.utils.dateparse import parse_datetime
+        start_dt = parse_datetime(request.data.get('start_datetime', '')) or meeting.start_datetime
+        end_dt   = parse_datetime(request.data.get('end_datetime', ''))   or meeting.end_datetime
+        overlap = Meeting.objects.filter(created_by=meeting.created_by).exclude(pk=pk).filter(
+            Q(start_datetime__lt=end_dt) & Q(end_datetime__gt=start_dt)
+        )
+        if overlap.exists():
+            return Response({'error': 'This time slot overlaps with another meeting'}, status=status.HTTP_409_CONFLICT)
+
+        serializer = MeetingSerializer(meeting, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    meeting.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Scrum Alerts
+# ---------------------------------------------------------------------------
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def scrum_alert_list(request):
+    if request.method == 'GET':
+        qs = ScrumAlert.objects.select_related('created_by').all()[:20]
+        return Response(ScrumAlertSerializer(qs, many=True).data)
+
+    if getattr(request.user, 'role', '') != 'Scrum Master':
+        return Response({'error': 'Only Scrum Masters can push alerts'}, status=status.HTTP_403_FORBIDDEN)
+
+    data = request.data.copy()
+    data['created_by'] = request.user.id
+    serializer = ScrumAlertSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def scrum_alert_latest(request):
+    from datetime import timedelta
+    cutoff = timezone.now() - timedelta(hours=2)
+    alert = ScrumAlert.objects.filter(is_active=True, created_at__gte=cutoff).order_by('-created_at').first()
+    if not alert:
+        return Response({'alert': None})
+    return Response({'alert': ScrumAlertSerializer(alert).data})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def scrum_alert_deactivate(request, pk):
+    if getattr(request.user, 'role', '') != 'Scrum Master':
+        return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        alert = ScrumAlert.objects.get(pk=pk)
+    except ScrumAlert.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    alert.is_active = False
+    alert.save()
+    return Response(ScrumAlertSerializer(alert).data)

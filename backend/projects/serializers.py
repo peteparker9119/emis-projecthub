@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert
 
 
 class SprintSerializer(serializers.ModelSerializer):
@@ -353,6 +353,43 @@ class ActivitySerializer(serializers.ModelSerializer):
         if obj.created_by:
             return obj.created_by.name
         return None
+
+
+class MeetingSerializer(serializers.ModelSerializer):
+    created_by_name     = serializers.SerializerMethodField()
+    created_by_initials = serializers.SerializerMethodField()
+    attendee_ids        = serializers.SerializerMethodField()
+    attendee_names      = serializers.SerializerMethodField()
+    attendee_count      = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Meeting
+        fields = [
+            'id', 'title', 'meeting_type', 'color',
+            'start_datetime', 'end_datetime',
+            'description', 'location',
+            'created_by', 'created_by_name', 'created_by_initials',
+            'attendees', 'attendee_ids', 'attendee_names', 'attendee_count',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):     return obj.created_by.name if obj.created_by else None
+    def get_created_by_initials(self, obj): return obj.created_by.initials() if obj.created_by else '??'
+    def get_attendee_ids(self, obj):        return list(obj.attendees.values_list('id', flat=True))
+    def get_attendee_names(self, obj):      return list(obj.attendees.values_list('name', flat=True))
+    def get_attendee_count(self, obj):      return obj.attendees.count()
+
+
+class ScrumAlertSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ScrumAlert
+        fields = ['id', 'created_by', 'created_by_name', 'alert_type', 'message', 'is_active', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_created_by_name(self, obj): return obj.created_by.name if obj.created_by else None
 
 
 class ProjectSerializer(serializers.ModelSerializer):

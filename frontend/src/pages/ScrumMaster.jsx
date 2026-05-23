@@ -5,6 +5,7 @@ import {
   pullReqToSprint, bulkPullToSprint,
   createStandup,
   getBreachedItems, createNotification,
+  createScrumAlert, deactivateScrumAlert, getScrumAlerts,
 } from '../api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -243,6 +244,13 @@ export default function ScrumMaster() {
   const [showOnlyMissing, setShowOnlyMissing]   = useState(false);
   const [sentCount, setSentCount]               = useState(0);
 
+  // Scrum Alert push
+  const [alertForm, setAlertForm]       = useState({ alert_type: 'standup', message: '' });
+  const [alertSending, setAlertSending] = useState(false);
+  const [alertSent, setAlertSent]       = useState(false);
+  const [alertErr, setAlertErr]         = useState('');
+  const [activeAlert, setActiveAlert]   = useState(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -259,6 +267,30 @@ export default function ScrumMaster() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load latest active alert for display
+  useEffect(() => {
+    getScrumAlerts().then(r => {
+      const active = r.data.find(a => a.is_active);
+      setActiveAlert(active || null);
+    }).catch(() => {});
+  }, [alertSent]);
+
+  const handlePushAlert = async () => {
+    if (!alertForm.message.trim()) { setAlertErr('Message is required'); return; }
+    setAlertSending(true); setAlertErr('');
+    try {
+      await createScrumAlert(alertForm);
+      setAlertSent(p => !p); // toggle to re-trigger useEffect
+      setAlertForm({ alert_type: 'standup', message: '' });
+    } catch (e) {
+      setAlertErr(e?.response?.data?.error || 'Failed to push alert');
+    } finally { setAlertSending(false); }
+  };
+
+  const handleDeactivateAlert = async (id) => {
+    try { await deactivateScrumAlert(id); setActiveAlert(null); } catch {}
+  };
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
@@ -314,6 +346,49 @@ export default function ScrumMaster() {
         <div style={{ fontSize: 13, color: 'var(--text2)' }}>
           {active_sprint ? `Active Sprint: ${active_sprint.id} — ${active_sprint.name}` : 'No active sprint'}{' · '}{today}
         </div>
+      </div>
+
+      {/* ── Push Global Alert Card ─────────────────────────────────── */}
+      <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #6ee7b7', padding: '18px 22px', marginBottom: 22, boxShadow: '0 2px 12px rgba(5,150,105,.08)' }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: '#065f46', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          📣 Push Global Alert
+          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10 }}>Broadcasts to all open sessions</span>
+        </div>
+
+        {activeAlert && (
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+            <span style={{ fontSize: 16 }}>⚡</span>
+            <span style={{ flex: 1, color: '#92400e' }}><strong>Active alert:</strong> {activeAlert.message}</span>
+            <button onClick={() => handleDeactivateAlert(activeAlert.id)}
+              style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #fcd34d', background: 'white', color: '#92400e', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+              Deactivate
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 10, alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Alert Type</div>
+            <select value={alertForm.alert_type} onChange={e => setAlertForm(p => ({ ...p, alert_type: e.target.value }))}
+              style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+              <option value="standup">🏆 Standup Time</option>
+              <option value="breach">🚨 Sprint Breach</option>
+              <option value="urgent">🔴 Urgent</option>
+              <option value="info">📢 General Info</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Message</div>
+            <input value={alertForm.message} onChange={e => setAlertForm(p => ({ ...p, message: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && handlePushAlert()}
+              placeholder="e.g. Daily standup starting now — join the call!" style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          </div>
+          <button onClick={handlePushAlert} disabled={alertSending || !alertForm.message.trim()}
+            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: alertSending || !alertForm.message.trim() ? 'var(--surface2)' : 'linear-gradient(135deg,#065f46,#0d9488)', color: alertSending || !alertForm.message.trim() ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 13, cursor: !alertForm.message.trim() ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+            {alertSending ? '⏳ Sending…' : '🚀 Push to All'}
+          </button>
+        </div>
+        {alertErr && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{alertErr}</div>}
       </div>
 
       {/* Stat cards */}

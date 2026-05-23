@@ -23,6 +23,7 @@ const PAGE_TITLES = {
   scrummaster:   'Scrum Master Dashboard',
   pmdailylog:    'My Work Log',
   pmactivity:    'PM Activity',
+  meetings:      'Meetings',
 };
 
 const ROLE_BADGE = {

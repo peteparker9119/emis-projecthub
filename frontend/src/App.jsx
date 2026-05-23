@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import { getLatestScrumAlert, deactivateScrumAlert } from './api';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sprints from './pages/Sprints';
@@ -22,6 +23,69 @@ import GroomingHub from './pages/GroomingHub';
 import ScrumMaster from './pages/ScrumMaster';
 import PMDailyLog from './pages/PMDailyLog';
 import PMActivity from './pages/PMActivity';
+import Meetings from './pages/Meetings';
+
+const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '📢' };
+const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
+
+function ScrumAlertBanner() {
+  const [alert, setAlert]       = useState(null);
+  const [dismissed, setDismissed] = useState(false);
+  const lastSeenId = useRef(null);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await getLatestScrumAlert();
+        const incoming = r.data.alert;
+        if (incoming && incoming.id !== lastSeenId.current) {
+          lastSeenId.current = incoming.id;
+          setDismissed(false);
+          setAlert(incoming);
+        }
+        if (!incoming) setAlert(null);
+      } catch {}
+    };
+    check();
+    const id = setInterval(check, 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!alert || dismissed) return null;
+
+  const color = ALERT_COLORS[alert.alert_type] || '#1a56db';
+  const icon  = ALERT_ICONS[alert.alert_type]  || '📢';
+  const timeAgo = (dt) => {
+    const diff = (Date.now() - new Date(dt)) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
+  };
+
+  return (
+    // backdrop: pointer-events none so page stays interactive
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 80 }}>
+      <div style={{ pointerEvents: 'auto', background: 'white', borderRadius: 18, padding: '20px 26px', boxShadow: '0 16px 60px rgba(0,0,0,.25)', border: `2px solid ${color}`, maxWidth: 440, width: '92vw', animation: 'saSlide .35s ease' }}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{icon}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color }}>{alert.alert_type === 'standup' ? '🏆 Standup Time!' : alert.alert_type === 'breach' ? '🚨 Sprint Breach Alert' : alert.alert_type === 'urgent' ? '🔴 Urgent Alert' : '📢 SM Notification'}</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>{timeAgo(alert.created_at)}</span>
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.5, marginBottom: 6 }}>{alert.message}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--text3)' }}>From <strong>{alert.created_by_name}</strong> (Scrum Master)</div>
+          </div>
+          <button onClick={() => setDismissed(true)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text3)', padding: 0, flexShrink: 0, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={() => setDismissed(true)} style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: color, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Got it</button>
+        </div>
+      </div>
+      <style>{`@keyframes saSlide { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+    </div>
+  );
+}
 
 function AppShell() {
   const { user, loading } = useAuth();
@@ -60,6 +124,7 @@ function AppShell() {
       case 'scrummaster':   return <ScrumMaster />;
       case 'pmdailylog':    return <PMDailyLog />;
       case 'pmactivity':    return <PMActivity />;
+      case 'meetings':      return <Meetings />;
       case 'profile':       return <Profile />;
       default:              return <Dashboard onNavigate={setPage} />;
     }
@@ -67,6 +132,7 @@ function AppShell() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <ScrumAlertBanner />
       <Sidebar currentPage={page} onNavigate={setPage} />
       <main style={{ marginLeft: 'var(--sidebar-w)', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Topbar currentPage={page} onNavigate={setPage} />
