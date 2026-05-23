@@ -36,6 +36,7 @@ const ALL_MENUS = [
 
   // ── Scrum Master ──────────────────────────────────────────────
   { id: 'scrummaster',   label: 'SM Dashboard',      icon: '🏆', section: 'Scrum',       roles: ['SM'] },
+  { id: 'teamdash',      label: 'My Team',           icon: '👥', section: 'Scrum',       roles: ['SM'] },
   { id: 'sprints',       label: 'Sprints',           icon: '🏃', section: 'Scrum',       roles: ['SM'] },
   { id: 'requirements',  label: 'Backlog',           icon: '📋', section: 'Scrum',       roles: ['SM'] },
   { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'Scrum',       roles: ['SM'] },
@@ -49,7 +50,8 @@ const ALL_MENUS = [
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['SM'] },
 
   // ── Product Manager ───────────────────────────────────────────
-  { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'teamdash',      label: 'My Team',            icon: '👥', section: 'PM Work',     roles: ['TL'] },
+  { id: 'pmdailylog',    label: 'My Work Log',        icon: '📓', section: 'PM Work',     roles: ['PM','TL'] },
   { id: 'epics',         label: 'Epics',             icon: '🗺️', section: 'PM Work',     roles: ['PM','TL'] },
   { id: 'releases',      label: 'Releases',          icon: '🚀', section: 'PM Work',     roles: ['PM','TL'] },
   { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'PM Work',     roles: ['PM','TL'] },

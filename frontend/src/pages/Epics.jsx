@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getEpics, createEpic, updateEpic, deleteEpic, getProjects, getRequirements, createRequirement } from '../api';
+import { getEpics, createEpic, updateEpic, deleteEpic, getProjects, getRequirements, createRequirement, getSprints, getUsers } from '../api';
 
 const STATUS_COLORS = {
   'Planning':    { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },

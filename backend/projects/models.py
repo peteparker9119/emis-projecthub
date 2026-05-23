@@ -657,3 +657,23 @@ class ScrumAlert(models.Model):
 
     def __str__(self):
         return f"Alert [{self.alert_type}] by {self.created_by}: {self.message[:60]}"
+
+
+class Team(models.Model):
+    DEPARTMENT_CHOICES = [
+        ('Dev', 'Development'), ('PM', 'Product Management'),
+        ('DevOps', 'DevOps'), ('Data', 'Data'),
+        ('Management', 'Management'), ('Regional', 'Regional Coordination'),
+    ]
+    name       = models.CharField(max_length=100, unique=True)
+    department = models.CharField(max_length=20, choices=DEPARTMENT_CHOICES, default='Dev')
+    team_lead  = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='led_teams')
+    members    = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='squad_teams', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'teams'
+        ordering = ['department', 'name']
+
+    def __str__(self):
+        return self.name

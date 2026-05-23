@@ -132,6 +132,11 @@ export const createEpic = (data) => api.post('/projects/epics/', data);
 export const updateEpic = (id, data) => api.patch(`/projects/epics/${id}/`, data);
 export const deleteEpic = (id) => api.delete(`/projects/epics/${id}/`);
 
+// Teams
+export const getTeams = () => api.get('/projects/teams/');
+export const getMyTeam = () => api.get('/projects/teams/my/');
+export const getTeamStandups = (id, date) => api.get(`/projects/teams/${id}/standups/`, { params: date ? { date } : {} });
+
 // Releases
 export const getReleases = (params) => api.get('/projects/releases/', { params });
 export const createRelease = (data) => api.post('/projects/releases/', data);

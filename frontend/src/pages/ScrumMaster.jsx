@@ -6,6 +6,7 @@ import {
   createStandup,
   getBreachedItems, createNotification,
   createScrumAlert, deactivateScrumAlert, getScrumAlerts,
+  getTeams, getTeamStandups,
 } from '../api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -249,6 +250,14 @@ export default function ScrumMaster() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberHistory, setMemberHistory]   = useState(null); // standups for selected member
 
+  // Scrum Meeting tab
+  const [scrumDate, setScrumDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [scrumTeamId, setScrumTeamId] = useState('');
+  const [scrumData, setScrumData]     = useState(null);
+  const [scrumMember, setScrumMember] = useState(null);
+  const [teams, setTeams]             = useState([]);
+  const [scrumLoading, setScrumLoading] = useState(false);
+
   // Scrum Alert push
   const [alertForm, setAlertForm]       = useState({ alert_type: 'standup', message: '' });
   const [alertSending, setAlertSending] = useState(false);
@@ -272,6 +281,22 @@ export default function ScrumMaster() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load teams list once
+  useEffect(() => {
+    getTeams().then(r => setTeams(r.data)).catch(() => {});
+  }, []);
+
+  // Load scrum meeting standups when team or date changes
+  useEffect(() => {
+    if (!scrumTeamId) { setScrumData(null); return; }
+    setScrumLoading(true);
+    setScrumMember(null);
+    getTeamStandups(scrumTeamId, scrumDate)
+      .then(r => setScrumData(r.data))
+      .catch(() => setScrumData(null))
+      .finally(() => setScrumLoading(false));
+  }, [scrumTeamId, scrumDate]);
 
   // Load latest active alert for display
   useEffect(() => {
@@ -410,6 +435,7 @@ export default function ScrumMaster() {
         {TAB('pipeline', `🔄 Grooming Pipeline${readyReqs.length > 0 ? ` (${readyReqs.length} ready)` : ''}`, () => setPipelineModal(true))}
         {TAB('breach', `🚨 Breach Alerts${breached.length > 0 ? ` (${breached.length})` : ''}`)}
         {TAB('dailytasks', '📋 Daily Tasks')}
+        {TAB('scrummeeting', '🏟️ Scrum Meeting')}
       </div>
 
       {/* ═══ STANDUP TAB ═══════════════════════════════════════════════════════ */}
@@ -649,6 +675,126 @@ export default function ScrumMaster() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ═══ SCRUM MEETING TAB ══════════════════════════════════════════════ */}
+      {tab === 'scrummeeting' && (
+        <div>
+          {/* Controls */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Date</div>
+              <input
+                type="date"
+                value={scrumDate}
+                onChange={e => setScrumDate(e.target.value)}
+                style={{ padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Team</div>
+              <select
+                value={scrumTeamId}
+                onChange={e => { setScrumTeamId(e.target.value); setScrumMember(null); }}
+                style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: 'white' }}
+              >
+                <option value="">— Select a team —</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name} ({t.department})</option>)}
+              </select>
+            </div>
+          </div>
+
+          {!scrumTeamId && (
+            <div style={{ background: 'white', borderRadius: 14, padding: '48px 32px', textAlign: 'center', border: '1px solid var(--border)', color: 'var(--text3)' }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>🏟️</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Select a team to view standups</div>
+            </div>
+          )}
+
+          {scrumTeamId && scrumLoading && (
+            <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text2)', fontSize: 13 }}>Loading…</div>
+          )}
+
+          {scrumTeamId && !scrumLoading && scrumData && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'start' }}>
+              {/* Member grid */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text2)' }}>
+                  {scrumData.team} — {scrumData.date} · {scrumData.members.filter(m => m.submitted).length}/{scrumData.members.length} submitted
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                  {scrumData.members.map(m => (
+                    <div
+                      key={m.user_id}
+                      onClick={() => setScrumMember(scrumMember?.user_id === m.user_id ? null : m)}
+                      style={{
+                        background: scrumMember?.user_id === m.user_id ? (m.submitted ? '#d1fae5' : '#fef2f2') : 'white',
+                        border: `1.5px solid ${m.submitted ? '#a7f3d0' : '#fecaca'}`,
+                        borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
+                        transition: 'all .15s',
+                        boxShadow: scrumMember?.user_id === m.user_id ? '0 4px 16px rgba(0,0,0,.1)' : 'none',
+                      }}
+                      onMouseEnter={e => { if (scrumMember?.user_id !== m.user_id) e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.08)'; }}
+                      onMouseLeave={e => { if (scrumMember?.user_id !== m.user_id) e.currentTarget.style.boxShadow = 'none'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                        <Avatar initials={m.initials} size={36}
+                          bg={m.submitted ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#dc2626,#ef4444)'} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text2)' }}>{m.role}</div>
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                        background: m.submitted ? '#d1fae5' : '#fef2f2',
+                        color: m.submitted ? '#065f46' : '#dc2626',
+                      }}>
+                        {m.submitted ? '✅ Submitted' : '🔴 Missing'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detail panel */}
+              {scrumMember && (
+                <div style={{ width: 340, background: 'white', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Avatar initials={scrumMember.initials} size={40}
+                      bg={scrumMember.submitted ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#dc2626,#ef4444)'} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{scrumMember.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text2)' }}>{scrumMember.role}</div>
+                    </div>
+                    <button onClick={() => setScrumMember(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text3)' }}>✕</button>
+                  </div>
+                  {scrumMember.submitted ? (
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {[
+                        { label: '📅 Yesterday', key: 'yesterday', color: '#1d4ed8', bg: '#eff6ff' },
+                        { label: '⚡ Today',     key: 'today',     color: '#15803d', bg: '#f0fdf4' },
+                        { label: '🚧 Blockers',  key: 'blockers',  color: '#dc2626', bg: '#fef2f2' },
+                      ].map(({ label, key, color, bg }) => (
+                        <div key={key}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>{label}</div>
+                          <div style={{ fontSize: 13, lineHeight: 1.6, background: bg, borderRadius: 10, padding: '10px 14px', whiteSpace: 'pre-wrap', minHeight: 36, color: 'var(--text)' }}>
+                            {scrumMember[key] || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>Not provided</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text3)' }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>No standup submitted</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

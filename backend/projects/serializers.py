@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team
 
 
 class SprintSerializer(serializers.ModelSerializer):
@@ -471,6 +471,22 @@ class ScrumAlertSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
     def get_created_by_name(self, obj): return obj.created_by.name if obj.created_by else None
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    team_lead_name = serializers.SerializerMethodField()
+    member_count   = serializers.SerializerMethodField()
+    members_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Team
+        fields = ['id','name','department','team_lead','team_lead_name','member_count','members','members_detail','created_at']
+        read_only_fields = ['id','created_at']
+
+    def get_team_lead_name(self, obj): return obj.team_lead.name if obj.team_lead else None
+    def get_member_count(self, obj): return obj.members.count()
+    def get_members_detail(self, obj):
+        return [{'id': u.id, 'name': u.name, 'initials': u.initials(), 'role': u.role, 'email': u.email} for u in obj.members.all()]
 
 
 class ProjectSerializer(serializers.ModelSerializer):

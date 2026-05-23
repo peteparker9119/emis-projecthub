@@ -27,6 +27,7 @@ import Meetings from './pages/Meetings';
 import KanbanBoard from './pages/KanbanBoard';
 import Epics from './pages/Epics';
 import Releases from './pages/Releases';
+import TeamDashboard from './pages/TeamDashboard';
 
 const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '📢' };
 const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
@@ -136,6 +137,7 @@ function AppShell() {
       case 'kanban':        return <KanbanBoard />;
       case 'epics':         return <Epics />;
       case 'releases':      return <Releases />;
+      case 'teamdash':      return <TeamDashboard />;
       case 'profile':       return <Profile />;
       default:              return <Dashboard onNavigate={setPage} />;
     }

@@ -319,17 +319,19 @@ export default function KanbanBoard() {
                         )}
                         {colItems.map(r => <KanbanCard key={r.id} r={r} dragId={dragId} setDragId={setDragId} setDragOver={setDragOver} onOpen={() => setPanel(r)} />)}
                       </div>
-                      {/* + Add button */}
-                      <div style={{ padding: '4px 10px 10px' }}>
-                        <button
-                          onClick={() => setQuickAdd({ status: col.status })}
-                          style={{ width: '100%', padding: '6px 0', border: `1.5px dashed ${col.border}`, borderRadius: 8, background: 'transparent', color: col.color, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: 0.7, transition: 'opacity .15s' }}
-                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                          onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
-                        >
-                          + Add
-                        </button>
-                      </div>
+                      {/* + Add button — only on Open column */}
+                      {col.status === 'Open' && (
+                        <div style={{ padding: '4px 10px 10px' }}>
+                          <button
+                            onClick={() => setQuickAdd({ status: col.status })}
+                            style={{ width: '100%', padding: '6px 0', border: `1.5px dashed ${col.border}`, borderRadius: 8, background: 'transparent', color: col.color, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: 0.7, transition: 'opacity .15s' }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                            onMouseLeave={e => e.currentTarget.style.opacity = 0.7}
+                          >
+                            + Add
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

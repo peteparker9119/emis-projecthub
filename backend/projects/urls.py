@@ -2,6 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Teams — static path must come before any <int:pk> pattern
+    path('teams/', views.team_list, name='team-list'),
+    path('teams/my/', views.my_team, name='my-team'),
+    path('teams/<int:pk>/standups/', views.team_standups, name='team-standups'),
+
     # Sprints
     path('sprints/', views.sprint_list, name='sprint-list'),
     path('sprints/<str:pk>/', views.sprint_detail, name='sprint-detail'),

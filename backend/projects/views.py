@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from users.models import User
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team
 from .serializers import (
     SprintSerializer, TaskSerializer, RequirementSerializer, RequirementGroomingSerializer,
     BugSerializer, IdeaSerializer, ActivitySerializer, ProjectSerializer,
@@ -14,6 +14,7 @@ from .serializers import (
     StandupSerializer, NotificationSerializer,
     PMWorkEntrySerializer, PMWorkEntryAttachmentSerializer, PMWorkEntryCommentSerializer,
     MeetingSerializer, ScrumAlertSerializer, EpicSerializer, ReleaseSerializer, ReleaseItemSerializer,
+    TeamSerializer,
 )
 
 
@@ -1433,3 +1434,43 @@ def release_remove_item(request, pk, item_id):
         return Response(status=status.HTTP_204_NO_CONTENT)
     except ReleaseItem.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ---------------------------------------------------------------------------
+# Teams
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def team_list(request):
+    teams = Team.objects.select_related('team_lead').prefetch_related('members').all()
+    return Response(TeamSerializer(teams, many=True).data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_team(request):
+    team = Team.objects.filter(team_lead=request.user).select_related('team_lead').prefetch_related('members').first()
+    if not team:
+        return Response({'error': 'No team found'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(TeamSerializer(team).data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def team_standups(request, pk):
+    from datetime import date as date_cls
+    try:
+        team = Team.objects.prefetch_related('members').get(pk=pk)
+    except Team.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    target_date = request.query_params.get('date', str(date_cls.today()))
+    all_members = list(team.members.all())
+    standups = Standup.objects.filter(user__in=all_members, date=target_date).select_related('user')
+    standup_map = {s.user_id: s for s in standups}
+    result = []
+    for m in all_members:
+        s = standup_map.get(m.id)
+        result.append({'user_id': m.id, 'name': m.name, 'initials': m.initials(), 'role': m.role,
+                       'submitted': s is not None,
+                       'yesterday': s.yesterday if s else '', 'today': s.today if s else '',
+                       'blockers': s.blockers if s else '', 'submitted_at': str(s.submitted_at) if s else None})
+    return Response({'team_id': team.id, 'team': team.name, 'date': target_date, 'members': result})
