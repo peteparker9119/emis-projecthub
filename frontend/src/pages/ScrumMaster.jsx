@@ -235,9 +235,10 @@ export default function ScrumMaster() {
   const [pipeFilter, setPipeFilter] = useState('');
 
   // Modals
-  const [standupModal, setStandupModal] = useState(null);
-  const [bulkModal, setBulkModal]       = useState(false);
-  const [notifyModal, setNotifyModal]   = useState(null);
+  const [standupModal, setStandupModal]   = useState(null);
+  const [bulkModal, setBulkModal]         = useState(false);
+  const [notifyModal, setNotifyModal]     = useState(null);
+  const [pipelineModal, setPipelineModal] = useState(false);
 
   // Standup filters
   const [standupSearch, setStandupSearch]       = useState('');
@@ -325,8 +326,8 @@ export default function ScrumMaster() {
     return true;
   });
 
-  const TAB = (id, label) => (
-    <button onClick={() => setTab(id)} style={{
+  const TAB = (id, label, onClick) => (
+    <button onClick={onClick || (() => setTab(id))} style={{
       padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 700, cursor: 'pointer',
       border: 'none', fontFamily: 'inherit', transition: 'all .15s',
       background: tab === id ? 'linear-gradient(135deg,#065f46,#059669)' : 'var(--surface2)',
@@ -402,7 +403,7 @@ export default function ScrumMaster() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
         {TAB('standup', '📅 Daily Standup')}
-        {TAB('pipeline', `🔄 Grooming Pipeline${readyReqs.length > 0 ? ` (${readyReqs.length} ready)` : ''}`)}
+        {TAB('pipeline', `🔄 Grooming Pipeline${readyReqs.length > 0 ? ` (${readyReqs.length} ready)` : ''}`, () => setPipelineModal(true))}
         {TAB('breach', `🚨 Breach Alerts${breached.length > 0 ? ` (${breached.length})` : ''}`)}
       </div>
 
@@ -471,90 +472,7 @@ export default function ScrumMaster() {
         </div>
       )}
 
-      {/* ═══ PIPELINE TAB ══════════════════════════════════════════════════════ */}
-      {tab === 'pipeline' && (
-        <div>
-          {/* Search + bulk action bar */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input value={pipeFilter} onChange={e => setPipeFilter(e.target.value)} placeholder="Search backlog…"
-              style={{ flex: 1, minWidth: 200, border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 12px', fontSize: 13, outline: 'none' }} />
-            {selected.size > 0 && (
-              <>
-                <span style={{ fontSize: 12, color: '#065f46', fontWeight: 700 }}>{selected.size} selected</span>
-                <button onClick={() => setBulkModal(true)} style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#065f46,#059669)', color: 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                  🚀 Pull {selected.size} to Sprint
-                </button>
-                <button onClick={clearAll} style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'white', fontSize: 12, cursor: 'pointer', color: 'var(--text2)' }}>Clear</button>
-              </>
-            )}
-          </div>
-
-          {/* Pipeline stages */}
-          {[
-            { key: 'ready_for_sprint', selectable: true },
-            { key: 'tl_reviewed', selectable: false },
-            { key: 'attachments_ready', selectable: false },
-            { key: 'pending', selectable: false },
-          ].map(({ key, selectable }) => {
-            const stageReqs = filterReqs(byStage(key));
-            const cfg = GSTATUS[key];
-            if (stageReqs.length === 0 && !pipelineSearch) return null;
-            return (
-              <div key={key} style={{ marginBottom: 24 }}>
-                {/* Stage header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span style={{ fontSize: 20 }}>{cfg.icon}</span>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: cfg.color }}>{cfg.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>{stageReqs.length}</span>
-                  {selectable && stageReqs.length > 0 && (
-                    <button onClick={selectAll} style={{ marginLeft: 4, fontSize: 11, fontWeight: 600, color: '#065f46', background: '#d1fae5', border: 'none', borderRadius: 6, padding: '2px 10px', cursor: 'pointer' }}>Select All</button>
-                  )}
-                </div>
-
-                {stageReqs.length === 0 ? (
-                  <div style={{ fontSize: 12, color: 'var(--text3)', padding: '8px 16px', background: 'white', borderRadius: 10, border: '1px dashed var(--border)' }}>
-                    No requirements at this stage.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {stageReqs.map(r => {
-                      const pc = PRIORITY_COLORS[r.priority] || { bg: '#f8fafc', color: '#64748b' };
-                      const isChecked = selected.has(r.id);
-                      return (
-                        <div key={r.id} style={{ background: 'white', borderRadius: 12, padding: '12px 16px', border: `1.5px solid ${isChecked ? '#059669' : cfg.border}`, display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color .15s', boxShadow: isChecked ? '0 0 0 2px #d1fae5' : 'none' }}>
-                          {selectable && (
-                            <input type="checkbox" checked={isChecked} onChange={() => toggleSelect(r.id)}
-                              style={{ width: 16, height: 16, flexShrink: 0, cursor: 'pointer', accentColor: '#059669' }} />
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
-                              <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: cfg.color }}>{r.id}</span>
-                              <Pill label={r.priority} {...pc} />
-                              {r.department && <Pill label={r.department} bg="#f0fdf4" color="#15803d" />}
-                            </div>
-                            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{r.title}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', gap: 12 }}>
-                              {r.assignee_name && <span>👤 {r.assignee_name}</span>}
-                              {r.children_count > 0 && <span>📋 {r.children_count} sub</span>}
-                              {r.comment_count > 0 && <span>💬 {r.comment_count}</span>}
-                            </div>
-                          </div>
-                          {selectable && (
-                            <button onClick={() => { setSelected(new Set([r.id])); setBulkModal(true); }}
-                              style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#065f46,#059669)', color: 'white', fontWeight: 700, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
-                              🚀 Pull
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Pipeline tab renders as a popup modal — see pipelineModal below */}
 
       {/* ═══ BREACH ALERTS TAB ═════════════════════════════════════════════════ */}
       {tab === 'breach' && (
@@ -620,6 +538,111 @@ export default function ScrumMaster() {
         <NotifyModal item={notifyModal} users={users}
           onClose={() => setNotifyModal(null)}
           onSent={() => { setSentCount(c => c + 1); setNotifyModal(null); }} />
+      )}
+
+      {/* ═══ PIPELINE MODAL ═══════════════════════════════════════════════════ */}
+      {pipelineModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900 }}
+          onClick={e => e.target === e.currentTarget && setPipelineModal(false)}>
+          <div style={{ background: 'white', borderRadius: 20, width: '82vw', maxWidth: 860, height: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,.22)' }}>
+            {/* Modal header */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+              <span style={{ fontSize: 22 }}>🔄</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>Grooming Pipeline</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                  {backlog.length} items in backlog · {readyReqs.length} ready to pull
+                </div>
+              </div>
+              {selected.size > 0 && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: '#065f46', fontWeight: 700 }}>{selected.size} selected</span>
+                  <button onClick={() => setBulkModal(true)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#065f46,#059669)', color: 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    🚀 Pull {selected.size} to Sprint
+                  </button>
+                  <button onClick={clearAll} style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'white', fontSize: 12, cursor: 'pointer', color: 'var(--text2)' }}>Clear</button>
+                </div>
+              )}
+              <button onClick={() => setPipelineModal(false)}
+                style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 16, color: 'var(--text2)' }}>✕</button>
+            </div>
+
+            {/* Search */}
+            <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <input value={pipeFilter} onChange={e => setPipeFilter(e.target.value)} placeholder="Search by title or ID…"
+                style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} autoFocus />
+            </div>
+
+            {/* Scrollable stages */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px' }}>
+              {[
+                { key: 'ready_for_sprint', selectable: true },
+                { key: 'tl_reviewed',      selectable: false },
+                { key: 'attachments_ready',selectable: false },
+                { key: 'pending',          selectable: false },
+              ].map(({ key, selectable }) => {
+                const stageReqs = filterReqs(byStage(key));
+                const cfg = GSTATUS[key];
+                if (stageReqs.length === 0 && !pipelineSearch) return null;
+                return (
+                  <div key={key} style={{ marginBottom: 26 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <span style={{ fontSize: 18 }}>{cfg.icon}</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: cfg.color }}>{cfg.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>{stageReqs.length}</span>
+                      {selectable && stageReqs.length > 0 && (
+                        <button onClick={selectAll} style={{ marginLeft: 4, fontSize: 11, fontWeight: 600, color: '#065f46', background: '#d1fae5', border: 'none', borderRadius: 6, padding: '2px 10px', cursor: 'pointer' }}>Select All</button>
+                      )}
+                    </div>
+
+                    {stageReqs.length === 0 ? (
+                      <div style={{ fontSize: 12, color: 'var(--text3)', padding: '8px 16px', background: 'var(--surface)', borderRadius: 10, border: '1px dashed var(--border)' }}>
+                        No requirements at this stage.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {stageReqs.map(r => {
+                          const pc = PRIORITY_COLORS[r.priority] || { bg: '#f8fafc', color: '#64748b' };
+                          const isChecked = selected.has(r.id);
+                          return (
+                            <div key={r.id} style={{ background: isChecked ? '#f0fdf4' : 'var(--surface)', borderRadius: 12, padding: '12px 16px', border: `1.5px solid ${isChecked ? '#059669' : cfg.border}`, display: 'flex', alignItems: 'center', gap: 12, transition: 'all .15s', boxShadow: isChecked ? '0 0 0 2px #d1fae5' : 'none' }}>
+                              {selectable && (
+                                <input type="checkbox" checked={isChecked} onChange={() => toggleSelect(r.id)}
+                                  style={{ width: 17, height: 17, flexShrink: 0, cursor: 'pointer', accentColor: '#059669' }} />
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
+                                  <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: cfg.color }}>{r.id}</span>
+                                  <Pill label={r.priority} {...pc} />
+                                  {r.item_type && r.item_type !== 'REQ' && <Pill label={r.item_type} bg="#ede9fe" color="#6d28d9" />}
+                                  {r.department && <Pill label={r.department} bg="#f0fdf4" color="#15803d" />}
+                                  {r.story_points && <Pill label={`${r.story_points} SP`} bg="#f5f3ff" color="#7c3aed" />}
+                                </div>
+                                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{r.title}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                  {r.assignee_name && <span>👤 {r.assignee_name}</span>}
+                                  {r.end_date && <span>🏁 {new Date(r.end_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}</span>}
+                                  {r.children_count > 0 && <span>📋 {r.children_count} sub</span>}
+                                  {r.comment_count > 0 && <span>💬 {r.comment_count}</span>}
+                                </div>
+                              </div>
+                              {selectable && (
+                                <button onClick={() => { setSelected(new Set([r.id])); setBulkModal(true); }}
+                                  style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#065f46,#059669)', color: 'white', fontWeight: 700, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
+                                  🚀 Pull
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

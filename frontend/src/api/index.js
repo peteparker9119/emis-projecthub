@@ -89,7 +89,8 @@ export const deleteStandup = (id) => api.delete(`/projects/standups/${id}/`);
 export const getScrumDashboard = () => api.get('/projects/scrum-dashboard/');
 export const pullReqToSprint = (reqId, sprintId) => api.post(`/projects/requirements/${reqId}/pull-to-sprint/`, { sprint_id: sprintId });
 export const bulkPullToSprint = (requirementIds, sprintId) => api.post('/projects/requirements/bulk-pull-to-sprint/', { requirement_ids: requirementIds, sprint_id: sprintId });
-export const getBreachedItems = () => api.get('/projects/breached-items/');
+export const getBreachedItems  = () => api.get('/projects/breached-items/');
+export const notifyBreaches    = () => api.post('/projects/notify-breaches/', {});
 
 // PM Work Log
 export const getPMWork = (params) => api.get('/projects/pm-work/', { params });

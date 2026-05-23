@@ -60,6 +60,7 @@ urlpatterns = [
 
     # Breached items
     path('breached-items/', views.breached_items, name='breached-items'),
+    path('notify-breaches/', views.notify_breaches, name='notify-breaches'),
 
     # PM Work Log
     path('pm-work/', views.pm_work_list, name='pm-work-list'),

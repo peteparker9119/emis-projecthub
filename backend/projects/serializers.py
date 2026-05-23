@@ -66,14 +66,18 @@ class RequirementSerializer(serializers.ModelSerializer):
     comment_count = serializers.SerializerMethodField()
     attachment_count = serializers.SerializerMethodField()
     grooming_status = serializers.SerializerMethodField()
+    timer_status = serializers.SerializerMethodField()
+    days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = Requirement
         fields = [
-            'id', 'title', 'priority', 'status',
+            'id', 'title', 'item_type', 'priority', 'status',
             'assignee', 'assignee_name',
             'sprint', 'sprint_name',
             'description', 'department', 'parent', 'parent_id', 'parent_title',
+            'start_date', 'end_date', 'story_points', 'breach_notified',
+            'timer_status', 'days_remaining',
             'children_count', 'total_logged_hours', 'comment_count', 'attachment_count',
             'grooming_status', 'created_at',
         ]
@@ -109,6 +113,27 @@ class RequirementSerializer(serializers.ModelSerializer):
             return obj.grooming.status
         except Exception:
             return 'pending'
+
+    def get_timer_status(self, obj):
+        from datetime import date
+        if obj.status == 'Done':
+            return 'done'
+        if not obj.start_date or not obj.end_date:
+            return 'pending'
+        today = date.today()
+        if today > obj.end_date:
+            return 'breached'
+        total_days = (obj.end_date - obj.start_date).days or 1
+        remaining = (obj.end_date - today).days
+        if remaining <= 1 or (remaining / total_days) <= 0.2:
+            return 'at_risk'
+        return 'on_track'
+
+    def get_days_remaining(self, obj):
+        from datetime import date
+        if not obj.end_date:
+            return None
+        return (obj.end_date - date.today()).days
 
 
 class RequirementGroomingSerializer(serializers.ModelSerializer):

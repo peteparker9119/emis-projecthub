@@ -102,14 +102,24 @@ class Requirement(models.Model):
         ('Review', 'Review'),
         ('Done', 'Done'),
     ]
-
     DEPARTMENT_CHOICES = [
         ('DSE', 'DSE'), ('DEE', 'DEE'), ('SS', 'SS'), ('MS', 'MS'),
         ('DGE', 'DGE'), ('DPS', 'DPS'), ('Other', 'Other'), ('Tech Initiatives', 'Tech Initiatives'),
     ]
+    ITEM_TYPE_CHOICES = [
+        ('REQ',   'Requirement'),
+        ('Bug',   'Bug'),
+        ('Task',  'Task'),
+        ('QA',    'QA'),
+        ('Report','Report'),
+        ('TI',    'Tech Initiative'),
+        ('Spike', 'Spike'),
+        ('Adhoc', 'Adhoc'),
+    ]
 
     id = models.CharField(max_length=10, primary_key=True, editable=False)
     title = models.CharField(max_length=300)
+    item_type = models.CharField(max_length=10, choices=ITEM_TYPE_CHOICES, default='REQ')
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='Medium')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
     assignee = models.ForeignKey(
@@ -122,6 +132,10 @@ class Requirement(models.Model):
     )
     description = models.TextField(blank=True)
     department = models.CharField(max_length=20, choices=DEPARTMENT_CHOICES, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    story_points = models.IntegerField(null=True, blank=True)
+    breach_notified = models.BooleanField(default=False)
     parent = models.ForeignKey(
         'self', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='children'

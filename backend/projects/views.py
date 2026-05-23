@@ -1261,3 +1261,42 @@ def scrum_alert_deactivate(request, pk):
     alert.is_active = False
     alert.save()
     return Response(ScrumAlertSerializer(alert).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def notify_breaches(request):
+    """Find newly-breached requirements and notify all Scrum Master users."""
+    from datetime import date
+    today = date.today()
+
+    breached = Requirement.objects.filter(
+        end_date__lt=today,
+        breach_notified=False,
+    ).exclude(status='Done')
+
+    if not breached.exists():
+        return Response({'notified': 0})
+
+    sm_users = User.objects.filter(role='Scrum Master')
+    count = 0
+
+    for req in breached:
+        for sm in sm_users:
+            Notification.objects.create(
+                recipient=sm,
+                sender=None,
+                title=f'Breach Alert: {req.id}',
+                message=(
+                    f'"{req.title}" has breached its end date '
+                    f'({req.end_date.strftime("%d %b %Y")}). '
+                    f'Current status: {req.status}.'
+                ),
+                item_type='requirement',
+                item_id=req.id,
+            )
+        req.breach_notified = True
+        req.save(update_fields=['breach_notified'])
+        count += 1
+
+    return Response({'notified': count})
