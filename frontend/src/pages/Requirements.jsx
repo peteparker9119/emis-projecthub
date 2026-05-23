@@ -910,6 +910,9 @@ export default function Requirements() {
   const [filterType, setFilterType]         = useState('');
 
   const [modal, setModal] = useState(null);
+  const [viewMode, setViewMode] = useState('list');
+  const [dragId,   setDragId]   = useState(null);
+  const [dragOver, setDragOver] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -1003,64 +1006,213 @@ export default function Requirements() {
           style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }}>
           + New Item
         </button>
+        {/* View toggle: list / board */}
+        <div style={{ display: 'flex', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+          <button
+            onClick={() => setViewMode('list')}
+            title="List view"
+            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'list' ? 'var(--accent)' : 'white', color: viewMode === 'list' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit', borderRight: '1px solid var(--border)' }}
+          >☰</button>
+          <button
+            onClick={() => setViewMode('board')}
+            title="Board view"
+            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'board' ? 'var(--accent)' : 'white', color: viewMode === 'board' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit' }}
+          >⊞</button>
+        </div>
       </div>
 
-      {/* List */}
+      {/* List / Board */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '56px 0', color: 'var(--text2)' }}>Loading…</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '56px 0', color: 'var(--text3)' }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>No items found</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>Click "+ New Item" to get started.</div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map(r => {
-            const pc  = PRIORITY_COLOR[r.priority]   || PRIORITY_COLOR.Medium;
-            const sc  = STATUS_COLOR[r.status]        || STATUS_COLOR['Open'];
-            const itc = ITEM_TYPE_COLOR[r.item_type]  || ITEM_TYPE_COLOR.REQ;
-            return (
-              <div key={r.id} onClick={() => setModal({ req: r })}
-                style={{
-                  background: 'white',
-                  border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
-                  borderLeft: `4px solid ${pc.color}`,
-                  borderRadius: 12, padding: '14px 18px', cursor: 'pointer', transition: 'box-shadow .15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0 }}>{r.id}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>{r.title}</div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Chip label={r.item_type || 'REQ'} color={itc.color} bg={itc.bg} border={itc.border} />
-                      <Chip label={r.priority}            color={pc.color}  bg={pc.bg}  border={pc.border} />
-                      <Chip label={r.status}              color={sc.color}  bg={sc.bg} />
-                      {r.assignee_name && <span style={{ fontSize: 11, color: 'var(--text2)' }}>👤 {r.assignee_name}</span>}
-                      {r.sprint_name   && <span style={{ fontSize: 11, color: 'var(--text2)' }}>🏃 {r.sprint_name}</span>}
-                      {r.story_points  && <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>{r.story_points} SP</span>}
-                    </div>
-                    {r.end_date && (
-                      <div style={{ marginTop: 6 }}>
-                        <TimerProgress req={r} />
+      ) : viewMode === 'list' ? (
+        filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '56px 0', color: 'var(--text3)' }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>No items found</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Click "+ New Item" to get started.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filtered.map(r => {
+              const pc  = PRIORITY_COLOR[r.priority]   || PRIORITY_COLOR.Medium;
+              const sc  = STATUS_COLOR[r.status]        || STATUS_COLOR['Open'];
+              const itc = ITEM_TYPE_COLOR[r.item_type]  || ITEM_TYPE_COLOR.REQ;
+              return (
+                <div key={r.id} onClick={() => setModal({ req: r })}
+                  style={{
+                    background: 'white',
+                    border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
+                    borderLeft: `4px solid ${pc.color}`,
+                    borderRadius: 12, padding: '14px 18px', cursor: 'pointer', transition: 'box-shadow .15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0 }}>{r.id}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>{r.title}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Chip label={r.item_type || 'REQ'} color={itc.color} bg={itc.bg} border={itc.border} />
+                        <Chip label={r.priority}            color={pc.color}  bg={pc.bg}  border={pc.border} />
+                        <Chip label={r.status}              color={sc.color}  bg={sc.bg} />
+                        {r.assignee_name && <span style={{ fontSize: 11, color: 'var(--text2)' }}>👤 {r.assignee_name}</span>}
+                        {r.sprint_name   && <span style={{ fontSize: 11, color: 'var(--text2)' }}>🏃 {r.sprint_name}</span>}
+                        {r.story_points  && <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>{r.story_points} SP</span>}
                       </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
-                    <TimerBadge timerStatus={r.timer_status} daysRemaining={r.days_remaining} endDate={r.end_date} />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {r.children_count > 0    && <span style={{ fontSize: 11, color: 'var(--text2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 8px' }}>📋 {r.children_count}</span>}
-                      {r.total_logged_hours > 0 && <span style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 20, padding: '2px 8px' }}>⏱ {parseFloat(r.total_logged_hours).toFixed(1)}h</span>}
-                      {r.comment_count > 0     && <span style={{ fontSize: 11, color: 'var(--text2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 8px' }}>💬 {r.comment_count}</span>}
+                      {r.end_date && (
+                        <div style={{ marginTop: 6 }}>
+                          <TimerProgress req={r} />
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+                      <TimerBadge timerStatus={r.timer_status} daysRemaining={r.days_remaining} endDate={r.end_date} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {r.children_count > 0    && <span style={{ fontSize: 11, color: 'var(--text2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 8px' }}>📋 {r.children_count}</span>}
+                        {r.total_logged_hours > 0 && <span style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 20, padding: '2px 8px' }}>⏱ {parseFloat(r.total_logged_hours).toFixed(1)}h</span>}
+                        {r.comment_count > 0     && <span style={{ fontSize: 11, color: 'var(--text2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 8px' }}>💬 {r.comment_count}</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        /* ── Kanban Board View ── */
+        (() => {
+          // Board uses all filters EXCEPT status (columns segment by status)
+          const boardItems = reqs.filter(r => {
+            if (r.parent) return false;
+            if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !r.id.toLowerCase().includes(search.toLowerCase())) return false;
+            if (filterPriority && r.priority  !== filterPriority) return false;
+            if (filterType     && r.item_type !== filterType)     return false;
+            return true;
+          });
+
+          const COLUMNS = [
+            { status: 'Open',        label: 'Open',        headerBg: '#dbeafe', headerColor: '#1e40af', borderColor: '#93c5fd' },
+            { status: 'In Progress', label: 'In Progress', headerBg: '#fef9c3', headerColor: '#854d0e', borderColor: '#fde047' },
+            { status: 'Review',      label: 'Review',      headerBg: '#f3e8ff', headerColor: '#6b21a8', borderColor: '#d8b4fe' },
+            { status: 'Done',        label: 'Done',        headerBg: '#dcfce7', headerColor: '#15803d', borderColor: '#86efac' },
+          ];
+
+          const handleDrop = async (colStatus) => {
+            if (!dragId || dragId === colStatus) return;
+            const item = reqs.find(r => r.id === dragId);
+            if (!item || item.status === colStatus) { setDragId(null); setDragOver(null); return; }
+            try {
+              await updateRequirement(dragId, { status: colStatus });
+              await refresh();
+            } catch {}
+            setDragId(null);
+            setDragOver(null);
+          };
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, alignItems: 'start' }}>
+              {COLUMNS.map(col => {
+                const colItems = boardItems.filter(r => r.status === col.status);
+                const isOver = dragOver === col.status;
+                return (
+                  <div
+                    key={col.status}
+                    onDragOver={e => { e.preventDefault(); setDragOver(col.status); }}
+                    onDragEnter={e => { e.preventDefault(); setDragOver(col.status); }}
+                    onDragLeave={e => {
+                      // Only clear if leaving the column container entirely
+                      if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null);
+                    }}
+                    onDrop={e => { e.preventDefault(); handleDrop(col.status); }}
+                    style={{
+                      background: isOver ? col.headerBg : 'var(--surface)',
+                      border: `2px solid ${isOver ? col.borderColor : 'var(--border)'}`,
+                      borderRadius: 14,
+                      minHeight: 200,
+                      transition: 'border-color .15s, background .15s',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Column header */}
+                    <div style={{ background: col.headerBg, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: col.headerColor }}>{col.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: col.headerColor, background: 'rgba(255,255,255,.6)', borderRadius: 20, padding: '2px 8px' }}>{colItems.length}</span>
+                    </div>
+
+                    {/* Cards */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 10px 12px' }}>
+                      {colItems.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 12, fontStyle: 'italic' }}>
+                          {isOver ? 'Drop here' : 'No items'}
+                        </div>
+                      )}
+                      {colItems.map(r => {
+                        const pc  = PRIORITY_COLOR[r.priority]   || PRIORITY_COLOR.Medium;
+                        const itc = ITEM_TYPE_COLOR[r.item_type] || ITEM_TYPE_COLOR.REQ;
+                        const isDragging = dragId === r.id;
+                        return (
+                          <div
+                            key={r.id}
+                            draggable
+                            onDragStart={() => setDragId(r.id)}
+                            onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                            onClick={() => setModal({ req: r })}
+                            style={{
+                              background: isDragging ? '#f1f5f9' : 'white',
+                              border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
+                              borderLeft: `3px solid ${pc.color}`,
+                              borderRadius: 10,
+                              padding: '10px 12px',
+                              cursor: 'grab',
+                              opacity: isDragging ? 0.5 : 1,
+                              transition: 'box-shadow .12s, opacity .12s',
+                              userSelect: 'none',
+                            }}
+                            onMouseEnter={e => { if (!isDragging) e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.1)'; }}
+                            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                          >
+                            {/* ID + timer badge row */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, gap: 6 }}>
+                              <span style={{ fontSize: 10, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.id}</span>
+                              <TimerBadge timerStatus={r.timer_status} daysRemaining={r.days_remaining} endDate={r.end_date} inline />
+                            </div>
+
+                            {/* Title */}
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {r.title}
+                            </div>
+
+                            {/* Chips row */}
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                              <Chip label={r.item_type || 'REQ'} color={itc.color} bg={itc.bg} border={itc.border} />
+                              <Chip label={r.priority}            color={pc.color}  bg={pc.bg}  border={pc.border} />
+                              {r.story_points && <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>{r.story_points}SP</span>}
+                            </div>
+
+                            {/* Assignee + counters */}
+                            {(r.assignee_name || r.children_count > 0 || r.comment_count > 0) && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                                {r.assignee_name && (
+                                  <span style={{ fontSize: 10.5, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <Avatar name={r.assignee_name} size={18} />
+                                    <span style={{ maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.assignee_name.split(' ')[0]}</span>
+                                  </span>
+                                )}
+                                {r.children_count > 0 && <span style={{ fontSize: 10, color: 'var(--text3)' }}>📋 {r.children_count}</span>}
+                                {r.comment_count  > 0 && <span style={{ fontSize: 10, color: 'var(--text3)' }}>💬 {r.comment_count}</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()
       )}
 
       {modal && (

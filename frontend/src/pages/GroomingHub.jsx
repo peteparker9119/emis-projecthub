@@ -550,6 +550,97 @@ function CreateReqForm({ sprints, users, onCreated, onCancel }) {
   );
 }
 
+// ── Pull Sprint Modal ─────────────────────────────────────────────────────────
+
+function PullSprintModal({ selected, sprints, onClose, onPulled }) {
+  const [pullSprint, setPullSprint] = useState('');
+  const [pulling,    setPulling]    = useState(false);
+  const [pullErr,    setPullErr]    = useState('');
+
+  const handlePull = async () => {
+    if (!pullSprint || selected.size === 0) return;
+    setPulling(true); setPullErr('');
+    try {
+      await bulkPullToSprint(Array.from(selected), pullSprint);
+      onPulled();
+    } catch (e) {
+      setPullErr(e?.response?.data?.error || 'Failed to pull requirements into sprint');
+    } finally { setPulling(false); }
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.48)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 950 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{
+        background: 'white', borderRadius: 16,
+        width: '92vw', maxWidth: 440,
+        boxShadow: '0 20px 70px rgba(0,0,0,.28)',
+        padding: '28px 28px 24px',
+        display: 'flex', flexDirection: 'column', gap: 18,
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>🚀 Pull to Sprint</div>
+          <button onClick={onClose} style={{ padding: '4px 9px', borderRadius: 7, border: '1.5px solid var(--border)', background: 'white', cursor: 'pointer', fontSize: 15, color: 'var(--text2)' }}>✕</button>
+        </div>
+
+        {/* Selected count */}
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1e40af' }}>
+          ✅ {selected.size} requirement{selected.size !== 1 ? 's' : ''} selected
+        </div>
+
+        {/* Sprint picker */}
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>Select Sprint</label>
+          <select
+            value={pullSprint}
+            onChange={e => { setPullSprint(e.target.value); setPullErr(''); }}
+            style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 9, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', cursor: 'pointer' }}
+          >
+            <option value="">— Choose a sprint —</option>
+            {sprints.filter(s => s.status === 'Active' || s.status === 'Planning').map(s => (
+              <option key={s.id} value={s.id}>
+                {s.status === 'Active' ? '⚡' : '📅'} {s.name} ({s.status})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Error */}
+        {pullErr && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '9px 14px', fontSize: 12.5, color: '#dc2626' }}>
+            {pullErr}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={handlePull}
+            disabled={!pullSprint || pulling}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 9, border: 'none',
+              background: !pullSprint || pulling ? '#d1d5db' : 'linear-gradient(135deg,#065f46,#059669)',
+              color: 'white', fontWeight: 700, fontSize: 13, cursor: !pullSprint || pulling ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {pulling ? '⏳ Pulling…' : `🚀 Pull ${selected.size} item${selected.size !== 1 ? 's' : ''}`}
+          </button>
+          <button
+            onClick={onClose}
+            style={{ padding: '10px 18px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'white', color: 'var(--text2)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function GroomingHub() {
@@ -575,9 +666,7 @@ export default function GroomingHub() {
 
   // SM bulk-pull state
   const [selected,   setSelected]   = useState(new Set());
-  const [pullSprint, setPullSprint] = useState('');
-  const [pulling,    setPulling]    = useState(false);
-  const [pullErr,    setPullErr]    = useState('');
+  const [pullModal,  setPullModal]  = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -603,19 +692,6 @@ export default function GroomingHub() {
       const updated = r.data.find(x => x.id === modal.id);
       if (updated) setModal(updated);
     }
-  };
-
-  const handleBulkPull = async () => {
-    if (!pullSprint || selected.size === 0) return;
-    setPulling(true); setPullErr('');
-    try {
-      await bulkPullToSprint(Array.from(selected), pullSprint);
-      setSelected(new Set());
-      setPullSprint('');
-      await loadData();
-    } catch (e) {
-      setPullErr(e?.response?.data?.error || 'Failed to pull requirements into sprint');
-    } finally { setPulling(false); }
   };
 
   const toggleSelect = (id) => {
@@ -725,6 +801,15 @@ export default function GroomingHub() {
             🚀 Sprint-Ready Only
           </button>
         )}
+        {/* SM: open pull modal when items are selected */}
+        {isScrumMaster && someSelected && (
+          <button
+            onClick={() => setPullModal(true)}
+            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#065f46,#059669)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}
+          >
+            🚀 Pull {selected.size} to Sprint
+          </button>
+        )}
       </div>
 
       {/* ── Create form (inline) ── */}
@@ -816,47 +901,18 @@ export default function GroomingHub() {
         />
       )}
 
-      {/* ── SM Bulk Pull Action Bar ── */}
-      {isScrumMaster && someSelected && (
-        <div style={{
-          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
-          background: '#1e293b', color: 'white', borderRadius: 16,
-          padding: '14px 22px', boxShadow: '0 8px 40px rgba(0,0,0,.35)',
-          display: 'flex', alignItems: 'center', gap: 14, zIndex: 500,
-          minWidth: 540, flexWrap: 'wrap',
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
-            ✅ {selected.size} requirement{selected.size > 1 ? 's' : ''} selected
-          </span>
-          <div style={{ flex: 1, minWidth: 180 }}>
-            <select
-              value={pullSprint}
-              onChange={e => { setPullSprint(e.target.value); setPullErr(''); }}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.1)', color: 'white', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}
-            >
-              <option value="">— Select a sprint —</option>
-              {sprints.filter(s => s.status === 'Active' || s.status === 'Planning').map(s => (
-                <option key={s.id} value={s.id} style={{ color: '#1e293b', background: 'white' }}>
-                  {s.status === 'Active' ? '⚡' : '📅'} {s.name} ({s.status})
-                </option>
-              ))}
-            </select>
-          </div>
-          {pullErr && <span style={{ fontSize: 12, color: '#fca5a5' }}>{pullErr}</span>}
-          <button
-            onClick={handleBulkPull}
-            disabled={!pullSprint || pulling}
-            style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: !pullSprint || pulling ? 'rgba(255,255,255,.15)' : 'linear-gradient(135deg,#1a56db,#0d9488)', color: 'white', fontWeight: 700, fontSize: 13, cursor: !pullSprint || pulling ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
-          >
-            {pulling ? '⏳ Pulling…' : '🚀 Pull to Sprint'}
-          </button>
-          <button
-            onClick={() => { setSelected(new Set()); setPullErr(''); }}
-            style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.2)', background: 'transparent', color: 'rgba(255,255,255,.7)', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
-          >
-            Clear
-          </button>
-        </div>
+      {/* ── Pull Sprint Modal ── */}
+      {pullModal && (
+        <PullSprintModal
+          selected={selected}
+          sprints={sprints}
+          onClose={() => setPullModal(false)}
+          onPulled={async () => {
+            setPullModal(false);
+            setSelected(new Set());
+            await loadData();
+          }}
+        />
       )}
     </div>
   );
