@@ -37,6 +37,7 @@ const ALL_MENUS = [
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'Scrum',       roles: ['SM'] },
   { id: 'pmactivity',    label: 'PM Activity',       icon: '📊', section: 'Scrum',       roles: ['SM'] },
   { id: 'members',       label: 'Team Members',      icon: '👥', section: 'Scrum',       roles: ['SM'] },
+  { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'My Work',     roles: ['SM'] },
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['SM'] },
 
   // ── Product Manager ───────────────────────────────────────────
@@ -98,7 +99,7 @@ export default function Sidebar({ currentPage, onNavigate, badges = {} }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name.split(' ')[0]}</div>
           <div style={{ fontSize: 10, opacity: .5, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-            {user.role === 'Scrum Master' ? 'Scrum Master' : user.role === 'Product Manager' ? 'Product Manager' : user.perfiq}
+            {user.role === 'Scrum Master' ? 'SM · Product Manager' : user.role === 'Product Manager' ? 'Product Manager' : user.perfiq}
           </div>
         </div>
       </div>
