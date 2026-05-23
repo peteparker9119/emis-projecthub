@@ -11,6 +11,7 @@ const ALL_MENUS = [
   { id: 'requirements',  label: 'Requirements',      icon: '📋', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
   { id: 'bugs',          label: 'Bugs',              icon: '🐛', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
   { id: 'ideas',         label: 'Ideas',             icon: '💡', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
+  { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
   { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'Work',        roles: ['MANAGER','EMPLOYEE'] },
 
@@ -36,6 +37,7 @@ const ALL_MENUS = [
   { id: 'scrummaster',   label: 'SM Dashboard',      icon: '🏆', section: 'Scrum',       roles: ['SM'] },
   { id: 'sprints',       label: 'Sprints',           icon: '🏃', section: 'Scrum',       roles: ['SM'] },
   { id: 'requirements',  label: 'Backlog',           icon: '📋', section: 'Scrum',       roles: ['SM'] },
+  { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'Scrum',       roles: ['SM'] },
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'Scrum',       roles: ['SM'] },
   { id: 'pmactivity',    label: 'PM Activity',       icon: '📊', section: 'Scrum',       roles: ['SM'] },
   { id: 'members',       label: 'Team Members',      icon: '👥', section: 'Scrum',       roles: ['SM'] },
@@ -45,6 +47,7 @@ const ALL_MENUS = [
 
   // ── Product Manager ───────────────────────────────────────────
   { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'PM Work',     roles: ['PM'] },
+  { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'PM Work',     roles: ['PM'] },
   { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'PM Work',     roles: ['PM'] },
   { id: 'requirements',  label: 'Requirements',      icon: '📋', section: 'PM Work',     roles: ['PM'] },
   { id: 'sprints',       label: 'Sprints',           icon: '🏃', section: 'PM Work',     roles: ['PM'] },

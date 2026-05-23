@@ -562,6 +562,18 @@ def idea_detail(request, pk):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def idea_vote(request, pk):
+    try:
+        idea = Idea.objects.get(pk=pk)
+    except Idea.DoesNotExist:
+        return Response({'error': 'Idea not found'}, status=status.HTTP_404_NOT_FOUND)
+    idea.votes = (idea.votes or 0) + 1
+    idea.save(update_fields=['votes'])
+    return Response({'votes': idea.votes})
+
+
 # ---------------------------------------------------------------------------
 # Activity
 # ---------------------------------------------------------------------------

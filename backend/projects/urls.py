@@ -34,6 +34,7 @@ urlpatterns = [
     # Ideas
     path('ideas/', views.idea_list, name='idea-list'),
     path('ideas/<str:pk>/', views.idea_detail, name='idea-detail'),
+    path('ideas/<str:pk>/vote/', views.idea_vote, name='idea-vote'),
 
     # Projects
     path('project-list/', views.project_list, name='project-list'),
@@ -49,14 +50,14 @@ urlpatterns = [
     path('standups/', views.standup_list, name='standup-list'),
     path('standups/<int:pk>/', views.standup_detail, name='standup-detail'),
 
+    # Bulk pull to sprint (SM only) — must be before <str:pk>/ to avoid route collision
+    path('requirements/bulk-pull-to-sprint/', views.req_bulk_pull_to_sprint, name='req-bulk-pull-to-sprint'),
+
     # Requirement → Sprint pull-in (SM only)
     path('requirements/<str:pk>/pull-to-sprint/', views.req_pull_to_sprint, name='req-pull-to-sprint'),
 
     # Scrum Master Dashboard
     path('scrum-dashboard/', views.scrum_dashboard, name='scrum-dashboard'),
-
-    # Bulk pull to sprint (SM only)
-    path('requirements/bulk-pull-to-sprint/', views.req_bulk_pull_to_sprint, name='req-bulk-pull-to-sprint'),
 
     # Breached items
     path('breached-items/', views.breached_items, name='breached-items'),

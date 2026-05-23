@@ -24,6 +24,7 @@ import ScrumMaster from './pages/ScrumMaster';
 import PMDailyLog from './pages/PMDailyLog';
 import PMActivity from './pages/PMActivity';
 import Meetings from './pages/Meetings';
+import KanbanBoard from './pages/KanbanBoard';
 
 const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '📢' };
 const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
@@ -130,6 +131,7 @@ function AppShell() {
       case 'pmdailylog':    return <PMDailyLog />;
       case 'pmactivity':    return <PMActivity />;
       case 'meetings':      return <Meetings />;
+      case 'kanban':        return <KanbanBoard />;
       case 'profile':       return <Profile />;
       default:              return <Dashboard onNavigate={setPage} />;
     }

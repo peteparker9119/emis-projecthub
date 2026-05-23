@@ -586,6 +586,3 @@ class ScrumAlert(models.Model):
 
     def __str__(self):
         return f"Alert [{self.alert_type}] by {self.created_by}: {self.message[:60]}"
-
-    def __str__(self):
-        return f"{self.text[:60]}"
