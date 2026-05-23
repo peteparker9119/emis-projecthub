@@ -49,15 +49,15 @@ const ALL_MENUS = [
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['SM'] },
 
   // ── Product Manager ───────────────────────────────────────────
-  { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'PM Work',     roles: ['PM'] },
-  { id: 'epics',         label: 'Epics',             icon: '🗺️', section: 'PM Work',     roles: ['PM'] },
-  { id: 'releases',      label: 'Releases',          icon: '🚀', section: 'PM Work',     roles: ['PM'] },
-  { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'PM Work',     roles: ['PM'] },
-  { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'PM Work',     roles: ['PM'] },
-  { id: 'requirements',  label: 'Requirements',      icon: '📋', section: 'PM Work',     roles: ['PM'] },
-  { id: 'sprints',       label: 'Sprints',           icon: '🏃', section: 'PM Work',     roles: ['PM'] },
-  { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'PM Work',     roles: ['PM'] },
-  { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['PM'] },
+  { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'epics',         label: 'Epics',             icon: '🗺️', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'releases',      label: 'Releases',          icon: '🚀', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'kanban',        label: 'Kanban Board',      icon: '🗂️', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'groomhub',      label: 'Grooming Hub',      icon: '🌱', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'requirements',  label: 'Requirements',      icon: '📋', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'sprints',       label: 'Sprints',           icon: '🏃', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'PM Work',     roles: ['PM','TL'] },
+  { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['PM','TL'] },
 ];
 
 export default function Sidebar({ currentPage, onNavigate, badges = {} }) {
