@@ -29,11 +29,16 @@ const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '�
 const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
 
 function ScrumAlertBanner() {
-  const [alert, setAlert]       = useState(null);
+  const { user } = useAuth();
+  const [alert, setAlert]         = useState(null);
   const [dismissed, setDismissed] = useState(false);
   const lastSeenId = useRef(null);
 
+  // SM pushes alerts — they don't receive their own popup
+  const isSM = user?.role === 'Scrum Master';
+
   useEffect(() => {
+    if (isSM) return; // SM only sends, never receives
     const check = async () => {
       try {
         const r = await getLatestScrumAlert();
@@ -49,9 +54,9 @@ function ScrumAlertBanner() {
     check();
     const id = setInterval(check, 15000);
     return () => clearInterval(id);
-  }, []);
+  }, [isSM]);
 
-  if (!alert || dismissed) return null;
+  if (isSM || !alert || dismissed) return null;
 
   const color = ALERT_COLORS[alert.alert_type] || '#1a56db';
   const icon  = ALERT_ICONS[alert.alert_type]  || '📢';
