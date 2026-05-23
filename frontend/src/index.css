@@ -218,3 +218,149 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 .profile-av { flex-shrink: 0; cursor: pointer; }
 
 @media (max-width: 768px) { .cto-bar { flex-direction: column; align-items: flex-start; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Motion & Micro-animations
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.88); }
+  70%  { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmerSweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* ── Staggered list (parent class) ───────────────────────────────────────── */
+.anim-list > * {
+  animation: fadeSlideUp 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.anim-list > *:nth-child(1)  { animation-delay:   0ms; }
+.anim-list > *:nth-child(2)  { animation-delay:  48ms; }
+.anim-list > *:nth-child(3)  { animation-delay:  96ms; }
+.anim-list > *:nth-child(4)  { animation-delay: 144ms; }
+.anim-list > *:nth-child(5)  { animation-delay: 192ms; }
+.anim-list > *:nth-child(6)  { animation-delay: 240ms; }
+.anim-list > *:nth-child(7)  { animation-delay: 288ms; }
+.anim-list > *:nth-child(8)  { animation-delay: 336ms; }
+.anim-list > *:nth-child(9)  { animation-delay: 384ms; }
+.anim-list > *:nth-child(10) { animation-delay: 432ms; }
+.anim-list > *:nth-child(n+11){ animation-delay: 480ms; }
+
+/* ── Staggered grid (parent class) ──────────────────────────────────────── */
+.anim-grid > * {
+  animation: fadeSlideUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-grid > *:nth-child(1)  { animation-delay:   0ms; }
+.anim-grid > *:nth-child(2)  { animation-delay:  65ms; }
+.anim-grid > *:nth-child(3)  { animation-delay: 130ms; }
+.anim-grid > *:nth-child(4)  { animation-delay: 195ms; }
+.anim-grid > *:nth-child(5)  { animation-delay: 260ms; }
+.anim-grid > *:nth-child(6)  { animation-delay: 325ms; }
+.anim-grid > *:nth-child(n+7){ animation-delay: 390ms; }
+
+/* ── Single element entrance ─────────────────────────────────────────────── */
+.anim-fade  { animation: fadeSlideUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-scale { animation: scaleIn    0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-pop   { animation: popIn      0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Card lift on hover (add class to wrapper) ───────────────────────────── */
+.card-lift {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.card-lift:hover {
+  transform: translateY(-5px) scale(1.008);
+  box-shadow: 0 14px 40px rgba(26,29,46,0.13);
+}
+.card-lift:active {
+  transform: translateY(-1px) scale(0.998);
+}
+
+/* ── Shimmer loading skeleton ────────────────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(90deg, var(--surface2) 25%, #e8eaf0 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmerSweep 1.4s infinite;
+  border-radius: 6px;
+}
+
+/* ── Enhanced existing card classes ─────────────────────────────────────── */
+.sprint-tile {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+.sprint-tile:hover {
+  transform: translateY(-5px) scale(1.01) !important;
+  box-shadow: 0 16px 48px rgba(26,29,46,0.14) !important;
+}
+
+.admin-tile {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s,
+              border-color 0.15s !important;
+}
+.admin-tile:hover {
+  transform: translateY(-4px) scale(1.04) !important;
+  box-shadow: 0 12px 32px rgba(26,86,219,0.16) !important;
+}
+.admin-tile:active { transform: scale(0.97) !important; }
+
+.kanban-card {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s,
+              border-color 0.15s !important;
+}
+.kanban-card:hover {
+  transform: translateY(-3px) scale(1.01) !important;
+  box-shadow: 0 8px 24px rgba(26,29,46,0.12) !important;
+}
+
+.letter-card {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s,
+              border-color 0.15s !important;
+}
+.letter-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 28px rgba(26,29,46,0.11) !important;
+}
+
+.stat-card {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s !important;
+}
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.01) !important;
+  box-shadow: 0 14px 36px rgba(26,29,46,0.13) !important;
+}
+
+/* ── Page entrance wrappers ──────────────────────────────────────────────── */
+.page-enter { animation: fadeSlideDown 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Kanban column drop target pulse ─────────────────────────────────────── */
+@keyframes dropPulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--accent); }
+  50%       { box-shadow: inset 0 0 0 3px var(--accent), 0 0 14px rgba(26,86,219,0.2); }
+}
+.drop-active { animation: dropPulse 0.8s ease infinite; }

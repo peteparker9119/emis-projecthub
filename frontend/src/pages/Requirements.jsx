@@ -967,7 +967,7 @@ export default function Requirements() {
   return (
     <div style={{ padding: '24px 28px', flex: 1 }}>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 22 }}>
+      <div className="anim-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 22 }}>
         {[
           { label: 'Total',       val: reqs.filter(r => !r.parent).length, color: 'var(--text)' },
           { label: 'Open',        val: byStatus('Open'),                    color: '#1d4ed8' },
@@ -976,7 +976,7 @@ export default function Requirements() {
           { label: 'Hours',       val: totalH.toFixed(1) + 'h',            color: 'var(--accent)' },
           { label: 'Breached',    val: breachedCount,                       color: '#dc2626' },
         ].map(s => (
-          <div key={s.label} style={{ background: 'white', border: `1px solid ${s.label === 'Breached' && s.val > 0 ? '#fca5a5' : 'var(--border)'}`, borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
+          <div key={s.label} className="card-lift" style={{ background: 'white', border: `1px solid ${s.label === 'Breached' && s.val > 0 ? '#fca5a5' : 'var(--border)'}`, borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'DM Mono, monospace', color: s.color }}>{s.val}</div>
             <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{s.label}</div>
           </div>
@@ -1032,21 +1032,21 @@ export default function Requirements() {
             <div style={{ fontSize: 13, marginTop: 4 }}>Click "+ New Item" to get started.</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="anim-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filtered.map(r => {
               const pc  = PRIORITY_COLOR[r.priority]   || PRIORITY_COLOR.Medium;
               const sc  = STATUS_COLOR[r.status]        || STATUS_COLOR['Open'];
               const itc = ITEM_TYPE_COLOR[r.item_type]  || ITEM_TYPE_COLOR.REQ;
               return (
                 <div key={r.id} onClick={() => setModal({ req: r })}
+                  className="card-lift"
                   style={{
                     background: 'white',
                     border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
                     borderLeft: `4px solid ${pc.color}`,
-                    borderRadius: 12, padding: '14px 18px', cursor: 'pointer', transition: 'box-shadow .15s',
+                    borderRadius: 12, padding: '14px 18px', cursor: 'pointer',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)'}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0 }}>{r.id}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -1111,7 +1111,7 @@ export default function Requirements() {
           };
 
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, alignItems: 'start' }}>
+            <div className="anim-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, alignItems: 'start' }}>
               {COLUMNS.map(col => {
                 const colItems = boardItems.filter(r => r.status === col.status);
                 const isOver = dragOver === col.status;
@@ -1141,10 +1141,10 @@ export default function Requirements() {
                     </div>
 
                     {/* Cards */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 10px 12px' }}>
+                    <div className="anim-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 10px 12px' }}>
                       {colItems.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 12, fontStyle: 'italic' }}>
-                          {isOver ? 'Drop here' : 'No items'}
+                          {isOver ? '⬇ Drop here' : 'No items'}
                         </div>
                       )}
                       {colItems.map(r => {
@@ -1158,19 +1158,18 @@ export default function Requirements() {
                             onDragStart={() => setDragId(r.id)}
                             onDragEnd={() => { setDragId(null); setDragOver(null); }}
                             onClick={() => setModal({ req: r })}
+                            className="card-lift"
                             style={{
                               background: isDragging ? '#f1f5f9' : 'white',
                               border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
                               borderLeft: `3px solid ${pc.color}`,
                               borderRadius: 10,
                               padding: '10px 12px',
-                              cursor: 'grab',
-                              opacity: isDragging ? 0.5 : 1,
-                              transition: 'box-shadow .12s, opacity .12s',
+                              cursor: isDragging ? 'grabbing' : 'grab',
+                              opacity: isDragging ? 0.45 : 1,
+                              transition: 'opacity .15s',
                               userSelect: 'none',
                             }}
-                            onMouseEnter={e => { if (!isDragging) e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.1)'; }}
-                            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
                           >
                             {/* ID + timer badge row */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, gap: 6 }}>
