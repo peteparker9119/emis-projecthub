@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   getRequirements, createRequirement, getSprints, getUsers,
   getReqGrooming, uploadWireframe, uploadStakeholder,
-  submitTlComment, submitPmComment,
+  submitTlComment, submitPmComment, bulkPullToSprint,
 } from '../api';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -573,6 +573,12 @@ export default function GroomingHub() {
   const [modal,      setModal]      = useState(null); // requirement object
   const [showCreate, setShowCreate] = useState(false);
 
+  // SM bulk-pull state
+  const [selected,   setSelected]   = useState(new Set());
+  const [pullSprint, setPullSprint] = useState('');
+  const [pulling,    setPulling]    = useState(false);
+  const [pullErr,    setPullErr]    = useState('');
+
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
@@ -599,6 +605,27 @@ export default function GroomingHub() {
     }
   };
 
+  const handleBulkPull = async () => {
+    if (!pullSprint || selected.size === 0) return;
+    setPulling(true); setPullErr('');
+    try {
+      await bulkPullToSprint(Array.from(selected), pullSprint);
+      setSelected(new Set());
+      setPullSprint('');
+      await loadData();
+    } catch (e) {
+      setPullErr(e?.response?.data?.error || 'Failed to pull requirements into sprint');
+    } finally { setPulling(false); }
+  };
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
   const filtered = reqs.filter(r => {
     if (r.parent) return false; // hide sub-items from list
     if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !r.id.toLowerCase().includes(search.toLowerCase())) return false;
@@ -611,6 +638,16 @@ export default function GroomingHub() {
 
   // Summary counts
   const byGrooming = (s) => reqs.filter(r => !r.parent && r.grooming_status === s).length;
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every(r => selected.has(r.id));
+  const someSelected = selected.size > 0;
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(r => r.id)));
+    }
+  };
 
   return (
     <div style={{ padding: '24px 28px', flex: 1 }}>
@@ -636,6 +673,18 @@ export default function GroomingHub() {
 
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* SM: select-all checkbox */}
+        {isScrumMaster && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'white', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={toggleSelectAll}
+              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--accent)' }}
+            />
+            Select All
+          </label>
+        )}
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search requirements…"
@@ -668,6 +717,14 @@ export default function GroomingHub() {
             + New Requirement
           </button>
         )}
+        {/* SM: quick filter to ready-for-sprint */}
+        {isScrumMaster && (
+          <button
+            onClick={() => setFilterGrooming(f => f === 'ready_for_sprint' ? '' : 'ready_for_sprint')}
+            style={{ padding: '8px 14px', borderRadius: 8, border: '1.5px solid #86efac', background: filterGrooming === 'ready_for_sprint' ? '#16a34a' : '#f0fdf4', color: filterGrooming === 'ready_for_sprint' ? 'white' : '#15803d', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            🚀 Sprint-Ready Only
+          </button>
+        )}
       </div>
 
       {/* ── Create form (inline) ── */}
@@ -695,15 +752,26 @@ export default function GroomingHub() {
             const pc = PRIORITY_COLOR[r.priority] || PRIORITY_COLOR.Medium;
             const sc = STATUS_COLOR[r.status]   || STATUS_COLOR['Open'];
             const gs = GROOMING_STATUS[r.grooming_status] || GROOMING_STATUS.pending;
+            const isChecked = selected.has(r.id);
             return (
               <div
                 key={r.id}
-                onClick={() => setModal(r)}
-                style={{ background: 'white', border: '1px solid var(--border)', borderLeft: `4px solid ${pc.color}`, borderRadius: 12, padding: '13px 18px', cursor: 'pointer', transition: 'box-shadow .15s' }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)'}
+                onClick={() => isScrumMaster ? toggleSelect(r.id) : setModal(r)}
+                style={{ background: isChecked ? '#eff6ff' : 'white', border: `1px solid ${isChecked ? '#93c5fd' : 'var(--border)'}`, borderLeft: `4px solid ${pc.color}`, borderRadius: 12, padding: '13px 18px', cursor: 'pointer', transition: 'box-shadow .15s, background .1s' }}
+                onMouseEnter={e => { if (!isChecked) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)'; }}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  {/* SM checkbox */}
+                  {isScrumMaster && (
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleSelect(r.id)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ width: 16, height: 16, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
+                    />
+                  )}
                   <span style={{ fontSize: 11, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0 }}>{r.id}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>{r.title}</div>
@@ -715,10 +783,20 @@ export default function GroomingHub() {
                       {r.sprint_name   && <span style={{ fontSize: 11, color: 'var(--text2)' }}>🏃 {r.sprint_name}</span>}
                     </div>
                   </div>
-                  <div style={{ flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: gs.bg, color: gs.color, border: `1px solid ${gs.border}` }}>
                       {gs.label}
                     </span>
+                    {/* SM: open grooming modal via button, not row click */}
+                    {isScrumMaster && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setModal(r); }}
+                        style={{ padding: '4px 10px', borderRadius: 7, border: '1.5px solid var(--border)', background: 'white', cursor: 'pointer', fontSize: 11.5, fontWeight: 600, color: 'var(--text2)', whiteSpace: 'nowrap' }}
+                        title="View grooming checklist"
+                      >
+                        📋 Details
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -736,6 +814,49 @@ export default function GroomingHub() {
           sprints={sprints}
           users={users}
         />
+      )}
+
+      {/* ── SM Bulk Pull Action Bar ── */}
+      {isScrumMaster && someSelected && (
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+          background: '#1e293b', color: 'white', borderRadius: 16,
+          padding: '14px 22px', boxShadow: '0 8px 40px rgba(0,0,0,.35)',
+          display: 'flex', alignItems: 'center', gap: 14, zIndex: 500,
+          minWidth: 540, flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            ✅ {selected.size} requirement{selected.size > 1 ? 's' : ''} selected
+          </span>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <select
+              value={pullSprint}
+              onChange={e => { setPullSprint(e.target.value); setPullErr(''); }}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.1)', color: 'white', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}
+            >
+              <option value="">— Select a sprint —</option>
+              {sprints.filter(s => s.status === 'Active' || s.status === 'Planning').map(s => (
+                <option key={s.id} value={s.id} style={{ color: '#1e293b', background: 'white' }}>
+                  {s.status === 'Active' ? '⚡' : '📅'} {s.name} ({s.status})
+                </option>
+              ))}
+            </select>
+          </div>
+          {pullErr && <span style={{ fontSize: 12, color: '#fca5a5' }}>{pullErr}</span>}
+          <button
+            onClick={handleBulkPull}
+            disabled={!pullSprint || pulling}
+            style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: !pullSprint || pulling ? 'rgba(255,255,255,.15)' : 'linear-gradient(135deg,#1a56db,#0d9488)', color: 'white', fontWeight: 700, fontSize: 13, cursor: !pullSprint || pulling ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
+          >
+            {pulling ? '⏳ Pulling…' : '🚀 Pull to Sprint'}
+          </button>
+          <button
+            onClick={() => { setSelected(new Set()); setPullErr(''); }}
+            style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,.2)', background: 'transparent', color: 'rgba(255,255,255,.7)', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
+          >
+            Clear
+          </button>
+        </div>
       )}
     </div>
   );
