@@ -10,8 +10,9 @@ urlpatterns = [
     path('tasks/', views.task_list, name='task-list'),
     path('tasks/<str:pk>/', views.task_detail, name='task-detail'),
 
-    # Requirements
+    # Requirements — static paths MUST come before <str:pk>/ wildcard
     path('requirements/', views.requirement_list, name='requirement-list'),
+    path('requirements/bulk-pull-to-sprint/', views.req_bulk_pull_to_sprint, name='req-bulk-pull-to-sprint'),
     path('requirements/<str:pk>/', views.requirement_detail, name='requirement-detail'),
     path('requirements/<str:pk>/children/', views.req_children, name='req-children'),
     path('requirements/<str:pk>/comments/', views.req_comments, name='req-comments'),
@@ -26,6 +27,7 @@ urlpatterns = [
     path('requirements/<str:pk>/grooming/stakeholder/', views.req_grooming_stakeholder, name='req-grooming-stakeholder'),
     path('requirements/<str:pk>/grooming/tl-comment/', views.req_grooming_tl_comment, name='req-grooming-tl-comment'),
     path('requirements/<str:pk>/grooming/pm-comment/', views.req_grooming_pm_comment, name='req-grooming-pm-comment'),
+    path('requirements/<str:pk>/pull-to-sprint/', views.req_pull_to_sprint, name='req-pull-to-sprint'),
 
     # Bugs
     path('bugs/', views.bug_list, name='bug-list'),
@@ -49,12 +51,6 @@ urlpatterns = [
     # Standups
     path('standups/', views.standup_list, name='standup-list'),
     path('standups/<int:pk>/', views.standup_detail, name='standup-detail'),
-
-    # Bulk pull to sprint (SM only) — must be before <str:pk>/ to avoid route collision
-    path('requirements/bulk-pull-to-sprint/', views.req_bulk_pull_to_sprint, name='req-bulk-pull-to-sprint'),
-
-    # Requirement → Sprint pull-in (SM only)
-    path('requirements/<str:pk>/pull-to-sprint/', views.req_pull_to_sprint, name='req-pull-to-sprint'),
 
     # Scrum Master Dashboard
     path('scrum-dashboard/', views.scrum_dashboard, name='scrum-dashboard'),
