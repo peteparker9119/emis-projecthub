@@ -663,6 +663,7 @@ export default function GroomingHub() {
 
   const [modal,      setModal]      = useState(null); // requirement object
   const [showCreate, setShowCreate] = useState(false);
+  const [viewMode,   setViewMode]   = useState('list'); // 'list' | 'grid'
 
   // SM bulk-pull state
   const [selected,   setSelected]   = useState(new Set());
@@ -749,6 +750,15 @@ export default function GroomingHub() {
 
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* View toggle */}
+        <div style={{ display: 'flex', gap: 2, border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+          {[['list','☰ List'],['grid','⊞ Grid']].map(([mode, label]) => (
+            <button key={mode} onClick={() => setViewMode(mode)}
+              style={{ padding: '7px 14px', border: 'none', background: viewMode === mode ? '#1a56db' : 'white', color: viewMode === mode ? 'white' : 'var(--text2)', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {label}
+            </button>
+          ))}
+        </div>
         {/* SM: select-all checkbox */}
         {isScrumMaster && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'white', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', userSelect: 'none' }}>
@@ -822,7 +832,7 @@ export default function GroomingHub() {
         />
       )}
 
-      {/* ── List ── */}
+      {/* ── List / Grid ── */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text2)' }}>Loading requirements…</div>
       ) : filtered.length === 0 ? (
@@ -831,7 +841,45 @@ export default function GroomingHub() {
           <div style={{ fontSize: 15, fontWeight: 600 }}>No requirements found</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>Click "+ New Requirement" to create one.</div>
         </div>
+      ) : viewMode === 'grid' ? (
+        /* ── Grid view ── */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {filtered.map(r => {
+            const pc = PRIORITY_COLOR[r.priority] || PRIORITY_COLOR.Medium;
+            const sc = STATUS_COLOR[r.status]   || STATUS_COLOR['Open'];
+            const gs = GROOMING_STATUS[r.grooming_status] || GROOMING_STATUS.pending;
+            return (
+              <div
+                key={r.id}
+                onClick={() => setModal(r)}
+                style={{ background: 'white', border: `1px solid var(--border)`, borderTop: `3px solid ${pc.color}`, borderRadius: 12, padding: '14px 16px', cursor: 'pointer', transition: 'box-shadow .15s', display: 'flex', flexDirection: 'column', gap: 10 }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+              >
+                {/* ID + chips row */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, fontFamily: 'DM Mono, monospace', color: 'var(--text3)' }}>{r.id}</span>
+                  <Chip label={r.priority} color={pc.color} bg={pc.bg} border={pc.border} />
+                  <Chip label={r.status}   color={sc.color} bg={sc.bg} />
+                </div>
+                {/* Title */}
+                <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {r.title}
+                </div>
+                {/* Footer */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 'auto' }}>
+                  {r.assignee_name && <span style={{ fontSize: 11, color: 'var(--text2)' }}>👤 {r.assignee_name}</span>}
+                  {r.sprint_name   && <span style={{ fontSize: 11, color: 'var(--text2)' }}>🏃 {r.sprint_name}</span>}
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: gs.bg, color: gs.color, border: `1px solid ${gs.border}`, alignSelf: 'flex-start' }}>
+                    {gs.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
+        /* ── List view (unchanged) ── */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(r => {
             const pc = PRIORITY_COLOR[r.priority] || PRIORITY_COLOR.Medium;

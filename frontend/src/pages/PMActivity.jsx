@@ -109,12 +109,47 @@ function PMCard({ pm, expanded, onToggle }) {
   );
 }
 
+// ── PM Card (card view) ────────────────────────────────────────────────────
+function EntryCard({ entry }) {
+  const cat = CATS[entry.category] || { label: entry.category, icon: '📌', color: '#64748b', bg: '#f8fafc' };
+  return (
+    <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid var(--border)', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,.05)', display: 'flex', flexDirection: 'column' }}>
+      {/* Top bar with category color */}
+      <div style={{ height: 4, background: cat.color }} />
+      <div style={{ padding: '14px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Header: date + category */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <CatBadge cat={entry.category} />
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10 }}>{entry.date}</span>
+        </div>
+        {/* Title */}
+        <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {entry.title}
+        </div>
+        {/* Description excerpt */}
+        {entry.description && (
+          <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {entry.description}
+          </div>
+        )}
+        {/* Footer */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 'auto', paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
+          <span style={{ fontSize: 14, fontWeight: 900, color: cat.color }}>{Number(entry.hours).toFixed(1)}h</span>
+          {entry.attachment_count > 0 && <span style={{ fontSize: 11, color: 'var(--text2)' }}>📎 {entry.attachment_count}</span>}
+          {entry.comment_count > 0    && <span style={{ fontSize: 11, color: 'var(--text2)' }}>💬 {entry.comment_count}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function PMActivity() {
   const [date, setDate]       = useState(dateStr(new Date()));
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -155,6 +190,15 @@ export default function PMActivity() {
         </div>
         <button onClick={() => navigate(1)} disabled={date >= dateStr(new Date())} style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 18, opacity: date >= dateStr(new Date()) ? .3 : 1 }}>›</button>
         <button onClick={() => setDate(dateStr(new Date()))} style={{ padding: '8px 14px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Today</button>
+        {/* View toggle */}
+        <div style={{ display: 'flex', gap: 2, border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+          {[['list','☰'],['grid','⊞']].map(([mode, icon]) => (
+            <button key={mode} onClick={() => setViewMode(mode)}
+              style={{ padding: '7px 12px', border: 'none', background: viewMode === mode ? '#1a56db' : 'white', color: viewMode === mode ? 'white' : 'var(--text2)', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              {icon}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Summary strip */}
@@ -175,7 +219,7 @@ export default function PMActivity() {
         </div>
       )}
 
-      {/* PM cards */}
+      {/* PM cards / grid */}
       {loading ? (
         <PageLoader message="Loading PM activity…" />
       ) : pms.length === 0 ? (
@@ -183,7 +227,31 @@ export default function PMActivity() {
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>No Product Managers found.</div>
         </div>
+      ) : viewMode === 'grid' ? (
+        /* ── Card / Grid view ── */
+        <div>
+          {pms.filter(pm => pm.entry_count > 0).map(pm => (
+            <div key={pm.user_id} style={{ marginBottom: 28 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white' }}>
+                  {pm.user_initials}
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{pm.user_name}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#1a56db', background: '#dbeafe', padding: '3px 12px', borderRadius: 20 }}>{pm.total_hours.toFixed(1)}h</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                {pm.entries.map(e => <EntryCard key={e.id} entry={e} />)}
+              </div>
+            </div>
+          ))}
+          {pms.filter(pm => pm.entry_count === 0).length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8 }}>
+              {pms.filter(pm => pm.entry_count === 0).map(pm => pm.user_name).join(', ')} — no entries today
+            </div>
+          )}
+        </div>
       ) : (
+        /* ── List view (unchanged) ── */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {pms.map(pm => (
             <PMCard

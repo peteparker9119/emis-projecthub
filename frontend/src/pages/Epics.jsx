@@ -148,30 +148,55 @@ function EpicFormModal({ epic, projects, onClose, onSaved }) {
   );
 }
 
-// ── Add Requirement Modal ─────────────────────────────────────────────────────
-function AddReqModal({ epic, onClose, onSaved }) {
+const DEPARTMENTS = ['DSE','DEE','SS','MS','DGE','DPS','Other','Tech Initiatives'];
+const STATUSES    = ['Open','In Progress','Review','Done'];
+
+// ── Full Requirement Modal ────────────────────────────────────────────────────
+function FullReqModal({ epic, onClose, onSaved }) {
   const [form, setForm] = useState({
     title: '',
+    description: '',
     item_type: 'REQ',
     priority: 'Medium',
     status: 'Open',
-    description: '',
+    assignee: '',
+    sprint: '',
+    department: '',
+    start_date: '',
+    end_date: '',
+    story_points: '',
   });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
+  const [users, setUsers]     = useState([]);
+  const [sprints, setSprints] = useState([]);
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState('');
   const F = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
 
+  useEffect(() => {
+    Promise.all([getUsers(), getSprints()])
+      .then(([ur, sr]) => { setUsers(ur.data); setSprints(sr.data); })
+      .catch(() => {});
+  }, []);
+
   const handleSave = async () => {
-    if (!form.title.trim()) { setErr('Title is required'); return; }
+    if (!form.title.trim())  { setErr('Title is required'); return; }
+    if (!form.start_date)    { setErr('Start date is required'); return; }
+    if (!form.end_date)      { setErr('End date is required'); return; }
     setSaving(true);
     try {
       await createRequirement({
-        title: form.title.trim(),
-        item_type: form.item_type,
-        priority: form.priority,
-        status: form.status,
+        title:       form.title.trim(),
         description: form.description.trim(),
-        epic: epic.id,
+        item_type:   form.item_type,
+        priority:    form.priority,
+        status:      form.status,
+        assignee:    form.assignee   || null,
+        sprint:      form.sprint     || null,
+        department:  form.department || '',
+        start_date:  form.start_date,
+        end_date:    form.end_date,
+        story_points: form.story_points ? Number(form.story_points) : null,
+        epic:        epic.id,
       });
       onSaved();
     } catch (e) {
@@ -180,10 +205,14 @@ function AddReqModal({ epic, onClose, onSaved }) {
     }
   };
 
+  const sel = { width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white', boxSizing: 'border-box' };
+  const inp = { width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
+  const lab = { fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'white', borderRadius: 18, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 24px 80px rgba(0,0,0,.2)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ background: 'white', borderRadius: 18, padding: 28, width: 620, maxWidth: '96vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,.22)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700 }}>+ Add Requirement</div>
             <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>Epic: {epic.id} · {epic.title}</div>
@@ -192,29 +221,87 @@ function AddReqModal({ epic, onClose, onSaved }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Title */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Title *</label>
-            <input value={form.title} onChange={F('title')} placeholder="Requirement title…" autoFocus
-              style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+            <label style={lab}>Title *</label>
+            <input value={form.title} onChange={F('title')} placeholder="Requirement title…" autoFocus style={inp} />
           </div>
+
+          {/* Description */}
+          <div>
+            <label style={lab}>Description</label>
+            <textarea value={form.description} onChange={F('description')} rows={3} placeholder="Describe the requirement…"
+              style={{ ...inp, resize: 'vertical' }} />
+          </div>
+
+          {/* Type + Priority */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Type</label>
-              <select value={form.item_type} onChange={F('item_type')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+              <label style={lab}>Type</label>
+              <select value={form.item_type} onChange={F('item_type')} style={sel}>
                 {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Priority</label>
-              <select value={form.priority} onChange={F('priority')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+              <label style={lab}>Priority</label>
+              <select value={form.priority} onChange={F('priority')} style={sel}>
                 {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Description</label>
-            <textarea value={form.description} onChange={F('description')} rows={3} placeholder="Optional description…"
-              style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+
+          {/* Status + Department */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lab}>Status</label>
+              <select value={form.status} onChange={F('status')} style={sel}>
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lab}>Department</label>
+              <select value={form.department} onChange={F('department')} style={sel}>
+                <option value="">— None —</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Assignee + Sprint */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lab}>Assignee</label>
+              <select value={form.assignee} onChange={F('assignee')} style={sel}>
+                <option value="">— Unassigned —</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lab}>Sprint</label>
+              <select value={form.sprint} onChange={F('sprint')} style={sel}>
+                <option value="">— No Sprint —</option>
+                {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Start + End dates */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lab}>Start Date *</label>
+              <input type="date" value={form.start_date} onChange={F('start_date')} style={inp} />
+            </div>
+            <div>
+              <label style={lab}>End Date *</label>
+              <input type="date" value={form.end_date} onChange={F('end_date')} style={inp} />
+            </div>
+          </div>
+
+          {/* Story Points */}
+          <div style={{ maxWidth: 160 }}>
+            <label style={lab}>Story Points</label>
+            <input type="number" value={form.story_points} onChange={F('story_points')} placeholder="0" min="0"
+              style={inp} />
           </div>
         </div>
 
@@ -492,7 +579,7 @@ export default function Epics() {
 
       {/* Add requirement modal */}
       {addReqEpic && (
-        <AddReqModal
+        <FullReqModal
           epic={addReqEpic}
           onClose={() => setAddReqEpic(null)}
           onSaved={() => { setAddReqEpic(null); loadData(); }}
