@@ -369,3 +369,67 @@ textarea.form-control { resize: vertical; min-height: 90px; }
   50%       { box-shadow: inset 0 0 0 3px var(--accent), 0 0 14px rgba(26,86,219,0.2); }
 }
 .drop-active { animation: dropPulse 0.8s ease infinite; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Dark Mode Overrides
+   ══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] body { color-scheme: dark; }
+
+/* Base elements */
+[data-theme="dark"] .card         { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .stat-card    { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .letter-stat  { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .letter-card  { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .admin-tile   { background: var(--surface); border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .member-card  { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .tl-box       { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .sprint-tile  { background: var(--surface); border-color: var(--border); }
+
+/* Inputs & selects */
+[data-theme="dark"] .search-input  { background: var(--surface2); color: var(--text);  border-color: var(--border); }
+[data-theme="dark"] .filter-select { background: var(--surface2); color: var(--text);  border-color: var(--border); }
+[data-theme="dark"] .form-control  { background: var(--surface2); color: var(--text);  border-color: var(--border); }
+[data-theme="dark"] .form-control:focus { background: var(--surface); border-color: var(--accent); }
+
+/* Table */
+[data-theme="dark"] th        { background: var(--surface2); color: var(--text2); border-color: var(--border); }
+[data-theme="dark"] td        { border-color: var(--border); color: var(--text); }
+[data-theme="dark"] tr:hover td { background: var(--surface2); }
+
+/* Kanban */
+[data-theme="dark"] .kanban-cards      { background: var(--surface2); border-color: var(--border); }
+[data-theme="dark"] .kanban-col-header { background: var(--surface);  border-color: var(--border); }
+[data-theme="dark"] .kanban-card       { background: var(--surface);  border-color: var(--border); }
+
+/* Buttons */
+[data-theme="dark"] .btn-outline { background: var(--surface2); border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* Tabs */
+[data-theme="dark"] .tabs { border-color: var(--border); }
+[data-theme="dark"] .tab  { color: var(--text2); }
+[data-theme="dark"] .tab.active { color: var(--accent); }
+
+/* Nav */
+[data-theme="dark"] .nav-item { color: rgba(255,255,255,.55); }
+[data-theme="dark"] .nav-item:hover { background: rgba(255,255,255,.07); color: white; }
+[data-theme="dark"] .nav-item.active { background: rgba(255,255,255,.12); color: white; }
+
+/* Scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* Sprint tile goal quote */
+[data-theme="dark"] .sprint-tile-goal { color: var(--text2); }
+[data-theme="dark"] .sprint-tile-goal::before { color: var(--border); }
+
+/* Sprint stats */
+[data-theme="dark"] .sprint-stat-col { border-color: var(--border); }
+[data-theme="dark"] .sprint-tile-stats { border-color: var(--border); }
+
+/* Profile hero stays gradient — looks great in dark too */
+
+/* Employee rows */
+[data-theme="dark"] .emp-row { border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .emp-row:hover { background: var(--surface2); }

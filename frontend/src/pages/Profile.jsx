@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme, ACCENTS } from '../context/ThemeContext';
 import Modal from '../components/Modal';
 
 const CARTOON_AVS = ['🐱','🦊','🐼','🦁','🐯','🐺','🐻','🐧','🦉','🐲','🦄','🤖','👽','🥷','🧙','🦸','🎭','🧛','🧜','🧝','🤠','🧑‍💻','🧑‍🎨','🦝'];
@@ -36,6 +37,7 @@ function AvatarDisplay({ av, initials, size = 56, fontSize = 20 }) {
 
 export default function Profile() {
   const { user } = useAuth();
+  const { mode, accent, setMode, setAccent } = useTheme();
   const [av, setAv] = useState(() => user ? loadAv(user.emis_id) : null);
   const [avOpen, setAvOpen] = useState(false);
   const [pick, setPick] = useState(null);
@@ -135,6 +137,76 @@ export default function Profile() {
                 <div style={{ fontSize: 13 }}>{v || '—'}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Appearance ─────────────────────────────────────────────── */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header"><span className="card-title">🎨 Appearance</span></div>
+        <div className="card-body">
+
+          {/* Mode toggle */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--text2)', marginBottom: 12 }}>Theme Mode</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { id: 'light', icon: '☀️', label: 'Light' },
+                { id: 'dark',  icon: '🌙', label: 'Dark'  },
+              ].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  style={{
+                    flex: 1, padding: '14px 10px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                    border: `2px solid ${mode === m.id ? 'var(--accent)' : 'var(--border)'}`,
+                    background: mode === m.id ? 'var(--accent-light)' : 'var(--surface2)',
+                    color: mode === m.id ? 'var(--accent)' : 'var(--text2)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                    transition: 'all .2s', boxShadow: mode === m.id ? '0 0 0 3px var(--accent-light)' : 'none',
+                  }}
+                >
+                  <span style={{ fontSize: 26 }}>{m.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Accent color */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--text2)', marginBottom: 12 }}>Accent Color</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {Object.entries(ACCENTS).map(([key, a]) => (
+                <button
+                  key={key}
+                  onClick={() => setAccent(key)}
+                  title={a.label}
+                  style={{
+                    width: 52, height: 52, borderRadius: '50%', background: a.grad, cursor: 'pointer',
+                    border: `3px solid ${accent === key ? a.accent : 'transparent'}`,
+                    boxShadow: accent === key ? `0 0 0 3px ${a.accentLight}, 0 4px 14px ${a.accent}55` : '0 2px 8px rgba(0,0,0,.15)',
+                    transition: 'all .2s', transform: accent === key ? 'scale(1.15)' : 'scale(1)',
+                    position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {accent === key && <span style={{ fontSize: 18, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.4))' }}>✓</span>}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)' }}>
+              Selected: <strong style={{ color: 'var(--accent)' }}>{ACCENTS[accent]?.label}</strong>
+            </div>
+
+            {/* Preview strip */}
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button className="btn btn-accent btn-sm">Primary Button</button>
+              <span className="badge badge-blue">Badge</span>
+              <div style={{ width: 80, height: 8, borderRadius: 4, background: 'var(--accent-light)', overflow: 'hidden' }}>
+                <div style={{ width: '60%', height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>Link text</span>
+            </div>
           </div>
         </div>
       </div>

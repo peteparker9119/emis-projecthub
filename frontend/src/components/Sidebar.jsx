@@ -76,7 +76,7 @@ export default function Sidebar({ currentPage, onNavigate, badges = {} }) {
 
   return (
     <aside style={{
-      width: 'var(--sidebar-w)', background: 'var(--text)', color: 'white',
+      width: 'var(--sidebar-w)', background: 'var(--sidebar-bg)', color: 'white',
       display: 'flex', flexDirection: 'column', flexShrink: 0,
       position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 100, overflowY: 'auto'
     }}>

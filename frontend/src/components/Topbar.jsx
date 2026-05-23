@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { getNotifications, markNotificationRead, markAllNotificationsRead, getUnreadCount } from '../api';
 
 const PAGE_TITLES = {
@@ -153,6 +154,7 @@ function useClock() {
 
 export default function Topbar({ currentPage, onNavigate }) {
   const { user, logout } = useAuth();
+  const { mode, toggleMode } = useTheme();
   const now = useClock();
   const effectiveRoleKey =
     user?.role === 'Scrum Master'    ? 'SM' :
@@ -163,7 +165,7 @@ export default function Topbar({ currentPage, onNavigate }) {
 
   return (
     <div style={{
-      background: 'white', borderBottom: '1px solid var(--border)',
+      background: 'var(--surface)', borderBottom: '1px solid var(--border)',
       padding: '0 28px', height: 58, display: 'flex', alignItems: 'center',
       justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, gap: 16
     }}>
@@ -187,6 +189,17 @@ export default function Topbar({ currentPage, onNavigate }) {
         <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, letterSpacing: '.3px', ...rb.style }}>
           {rb.label}
         </span>
+
+        {/* Dark mode quick toggle */}
+        <button
+          onClick={toggleMode}
+          title={mode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          style={{ background: 'var(--surface2)', border: '1.5px solid var(--border)', borderRadius: 10, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17, transition: 'all .15s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-light)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+        >
+          {mode === 'dark' ? '☀️' : '🌙'}
+        </button>
 
         {/* Notification bell */}
         <NotificationBell />
