@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMIS ProjectHub — Demo Launcher</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Fraunces:wght@700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #1a56db;
+    --teal: #0d9488;
+    --text: #1a1d2e;
+    --text2: #5a6080;
+    --border: #e2e6f0;
+    --bg: #f4f6fb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .logo {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, #1a56db, #0d9488);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: white; font-size: 28px;
+    letter-spacing: -2px;
+    margin: 0 auto 20px;
+    box-shadow: 0 12px 40px rgba(26,86,219,.3);
+    animation: logoPop .6s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  @keyframes logoPop { from{opacity:0;transform:scale(.6)} to{opacity:1;transform:scale(1)} }
+  .hero-title {
+    font-family: 'Fraunces', serif;
+    font-size: 36px; font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+    animation: fadeUp .5s ease .15s both;
+  }
+  .hero-title span { background: linear-gradient(135deg,#1a56db,#0d9488); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .hero-sub {
+    font-size: 15px; color: var(--text2);
+    animation: fadeUp .5s ease .25s both;
+    max-width: 480px; margin: 0 auto 28px;
+    line-height: 1.6;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Launch button */
+  .launch-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, #1a56db, #0e3a9c);
+    color: white; text-decoration: none;
+    padding: 16px 36px; border-radius: 14px;
+    font-size: 16px; font-weight: 700;
+    box-shadow: 0 8px 32px rgba(26,86,219,.35);
+    transition: all .2s;
+    animation: fadeUp .5s ease .35s both;
+    letter-spacing: .3px;
+  }
+  .launch-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(26,86,219,.4); }
+  .launch-btn:active { transform: translateY(0); }
+  .launch-icon { font-size: 20px; }
+
+  /* Feature grid */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 860px;
+    width: 100%;
+    animation: fadeUp .5s ease .45s both;
+  }
+  .feature-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 18px;
+    transition: all .2s;
+    cursor: default;
+  }
+  .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 28px rgba(26,29,46,.1); }
+  .feature-icon { font-size: 26px; margin-bottom: 10px; }
+  .feature-title { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .feature-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+  /* Credentials card */
+  .creds {
+    margin-top: 32px;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 28px;
+    max-width: 500px;
+    width: 100%;
+    animation: fadeUp .5s ease .55s both;
+  }
+  .creds-title { font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+  .cred-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .cred-row:last-child { border-bottom: none; }
+  .cred-role { font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .cred-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .5px; }
+  .badge-cto { background: linear-gradient(135deg,#1a56db,#0d9488); color: white; }
+  .badge-mgr { background: #e0fdf4; color: #0d9488; }
+  .badge-emp { background: #f0f2f8; color: #5a6080; }
+  .cred-email { font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--text2); }
+  .cred-pass { font-family: 'DM Mono', monospace; font-size: 11.5px; background: #f0f2f8; padding: 2px 8px; border-radius: 6px; color: var(--accent); font-weight: 600; }
+
+  /* Footer */
+  .footer { margin-top: 36px; font-size: 11.5px; color: var(--text2); text-align: center; animation: fadeUp .5s ease .65s both; }
+  .footer span { color: var(--accent); font-weight: 600; }
+
+  /* Divider */
+  .divider { width: 100%; max-width: 860px; text-align: center; margin: 32px 0 28px; position: relative; }
+  .divider::before { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:var(--border); }
+  .divider span { position:relative; background:var(--bg); padding:0 14px; font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; }
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="logo">EP</div>
+    <h1 class="hero-title">EMIS <span>ProjectHub</span></h1>
+    <p class="hero-sub">Tamil Nadu Education Management Information System — CTO Command Center. Full-featured project management built for the EMIS team.</p>
+    <a href="EMIS_ProjectHub_CTO.html" class="launch-btn">
+      <span class="launch-icon">🚀</span> Launch Dashboard
+    </a>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">🏠</div>
+      <div class="feature-title">Live Dashboard</div>
+      <div class="feature-desc">Animated stat tiles, team pulse, sprint overview and activity feed.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏃</div>
+      <div class="feature-title">Sprint Tiles</div>
+      <div class="feature-desc">Creative sprint cards with SVG progress rings, assignee stacks and velocity bars.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Sprint Compare</div>
+      <div class="feature-desc">Health scores, velocity vs capacity charts and best/worst performer highlights.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧩</div>
+      <div class="feature-title">Menu Builder</div>
+      <div class="feature-desc">Create custom menus dynamically, assign to roles or users and control visibility.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎯</div>
+      <div class="feature-title">Employee Tracker</div>
+      <div class="feature-desc">Live workload bars, status indicators and expandable task details per employee.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">✉️</div>
+      <div class="feature-title">Letter Management</div>
+      <div class="feature-desc">Compose, draft and send official letters with type-coded borders and stats.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛡️</div>
+      <div class="feature-title">Admin Controls</div>
+      <div class="feature-desc">Role management, menu visibility, audit log, permissions matrix and theme picker.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎭</div>
+      <div class="feature-title">Character Creator</div>
+      <div class="feature-desc">Build your animated SVG character with custom skin, hair, eyes, outfit and accessories.</div>
+    </div>
+  </div>
+
+  <div class="divider"><span>Quick Login</span></div>
+
+  <div class="creds">
+    <div class="creds-title">🔐 Demo Credentials</div>
+    <div class="cred-row">
+      <div class="cred-role"><span class="cred-badge badge-cto">CTO</span> Varun M</div>
+      <div>
+        <div class="cred-email">varun.m@tnschools.gov.in</div>
+        <div class="cred-pass">cto123</div>
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-role"><span class="cred-badge badge-mgr">Manager</span> Manoj Kumar R</div>
+      <div>
+        <div class="cred-email">manojkumar.r@tnschools.gov.in</div>
+        <div class="cred-pass">pass123</div>
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-role"><span class="cred-badge badge-emp">Employee</span> Abinaya J</div>
+      <div>
+        <div class="cred-email">abinaya.j@tnschools.gov.in</div>
+        <div class="cred-pass">pass123</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Stored at <span>projects/emis-projecthub/cto-dashboard/</span> · No server needed · Opens in any browser
+  </div>
+
+</body>
+</html>
