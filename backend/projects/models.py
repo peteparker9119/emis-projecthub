@@ -22,6 +22,7 @@ class Sprint(models.Model):
     STATUS_CHOICES = [
         ('Planning', 'Planning'),
         ('Active', 'Active'),
+        ('On Hold', 'On Hold'),
         ('Completed', 'Completed'),
     ]
 

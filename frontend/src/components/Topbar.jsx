@@ -180,7 +180,7 @@ export default function Topbar({ currentPage, onNavigate }) {
         </span>
         <span style={{ width: 1, height: 14, background: 'var(--border)' }} />
         <span style={{ fontSize: 12.5, fontWeight: 800, fontFamily: 'DM Mono, monospace', letterSpacing: 1, color: 'var(--text)' }}>
-          🕐 {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          🕐 {now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
         </span>
       </div>
 

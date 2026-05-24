@@ -7,6 +7,7 @@ import {
   getBreachedItems, createNotification,
   createScrumAlert, deactivateScrumAlert, getScrumAlerts,
   getTeams, getTeamStandups,
+  updateSprint,
 } from '../api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -221,6 +222,74 @@ function NotifyModal({ item, users, onClose, onSent }) {
   );
 }
 
+// ── Sprint Control Panel ──────────────────────────────────────────────────────
+function SprintControlPanel({ sprints, busy, msg, onAction }) {
+  const actionable = sprints.filter(s => s.status !== 'Completed');
+  if (actionable.length === 0) return null;
+
+  const statusConfig = {
+    Planning:  { next: [{ label: '▶ Start', to: 'Active', color: '#065f46', bg: 'linear-gradient(135deg,#065f46,#059669)' }], badge: { bg: '#ede9fe', color: '#7c3aed' } },
+    Active:    { next: [
+      { label: '⏸ Hold', to: 'On Hold', color: '#b45309', bg: 'linear-gradient(135deg,#b45309,#d97706)' },
+      { label: '✓ Close', to: 'Completed', color: '#dc2626', bg: 'linear-gradient(135deg,#dc2626,#ef4444)' },
+    ], badge: { bg: '#d1fae5', color: '#065f46' } },
+    'On Hold': { next: [
+      { label: '▶ Resume', to: 'Active', color: '#065f46', bg: 'linear-gradient(135deg,#065f46,#059669)' },
+      { label: '✓ Close', to: 'Completed', color: '#dc2626', bg: 'linear-gradient(135deg,#dc2626,#ef4444)' },
+    ], badge: { bg: '#fef9c3', color: '#92400e' } },
+  };
+
+  return (
+    <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #6ee7b7', padding: '16px 22px', marginBottom: 22, boxShadow: '0 2px 12px rgba(5,150,105,.06)' }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#065f46', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+        🏃 Sprint Controls
+        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10 }}>Manage sprint lifecycle</span>
+      </div>
+
+      {msg && (
+        <div style={{ background: msg.startsWith('✅') ? '#d1fae5' : '#fef2f2', border: `1px solid ${msg.startsWith('✅') ? '#6ee7b7' : '#fecaca'}`, borderRadius: 8, padding: '8px 14px', marginBottom: 12, fontSize: 12.5, color: msg.startsWith('✅') ? '#065f46' : '#dc2626', fontWeight: 600 }}>
+          {msg}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {actionable.map(sprint => {
+          const cfg = statusConfig[sprint.status];
+          if (!cfg) return null;
+          return (
+            <div key={sprint.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              {/* Sprint info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#065f46' }}>{sprint.id}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '1px 8px', borderRadius: 10, background: cfg.badge.bg, color: cfg.badge.color }}>{sprint.status}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sprint.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
+                  {sprint.start_date} → {sprint.end_date} · {sprint.task_count ?? '?'} items
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {cfg.next.map(action => (
+                  <button
+                    key={action.to}
+                    disabled={busy}
+                    onClick={() => onAction(sprint.id, action.to)}
+                    style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: busy ? 'var(--surface2)' : action.bg, color: busy ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 12, cursor: busy ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all .15s', boxShadow: busy ? 'none' : '0 2px 8px rgba(0,0,0,.15)' }}>
+                    {busy ? '⏳' : action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ScrumMaster() {
   const { user } = useAuth();
@@ -232,6 +301,8 @@ export default function ScrumMaster() {
   const [loading, setLoading]    = useState(true);
 
   const [tab, setTab]            = useState('standup');
+  const [sprintActionBusy, setSprintActionBusy] = useState(false);
+  const [sprintActionMsg, setSprintActionMsg]   = useState('');
   const [selected, setSelected]  = useState(new Set()); // req IDs for bulk pull
   const [pipeFilter, setPipeFilter] = useState('');
 
@@ -420,6 +491,26 @@ export default function ScrumMaster() {
         </div>
         {alertErr && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{alertErr}</div>}
       </div>
+
+      {/* ── Sprint Control Panel ──────────────────────────────────── */}
+      <SprintControlPanel
+        sprints={sprints}
+        busy={sprintActionBusy}
+        msg={sprintActionMsg}
+        onAction={async (sprintId, newStatus) => {
+          setSprintActionBusy(true);
+          setSprintActionMsg('');
+          try {
+            await updateSprint(sprintId, { status: newStatus });
+            setSprintActionMsg(`✅ Sprint moved to ${newStatus}`);
+            load();
+          } catch (e) {
+            setSprintActionMsg('❌ ' + (e?.response?.data?.error || 'Action failed'));
+          } finally {
+            setSprintActionBusy(false);
+          }
+        }}
+      />
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 26 }}>

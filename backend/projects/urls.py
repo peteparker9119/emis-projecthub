@@ -52,6 +52,7 @@ urlpatterns = [
 
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('cto-mini-dashboard/', views.cto_mini_dashboard, name='cto-mini-dashboard'),
 
     # Standups
     path('standups/', views.standup_list, name='standup-list'),

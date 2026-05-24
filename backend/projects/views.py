@@ -1161,22 +1161,57 @@ def pm_work_comment_detail(request, pk, comment_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def pm_work_summary(request):
-    """Consolidated daily PM work summary for SM / CTO views."""
-    from datetime import date as date_type
-    target_date = request.query_params.get('date', str(date_type.today()))
+    """Consolidated PM work summary — supports single date or date range."""
+    from datetime import date as date_type, timedelta
+
+    date_from_str = request.query_params.get('date_from')
+    date_to_str   = request.query_params.get('date_to')
+    target_date   = request.query_params.get('date', str(date_type.today()))
+
+    if date_from_str and date_to_str:
+        try:
+            start = date_type.fromisoformat(date_from_str)
+            end   = date_type.fromisoformat(date_to_str)
+        except ValueError:
+            start = end = date_type.fromisoformat(target_date)
+    else:
+        start = end = date_type.fromisoformat(target_date)
+
+    work_days = sum(
+        1 for i in range((end - start).days + 1)
+        if (start + timedelta(i)).weekday() < 5
+    )
+    expected_hours = max(work_days * 8, 8)
+
+    # Active sprint for sprint-items breakdown
+    active_sprint = Sprint.objects.filter(status='Active').first()
 
     pm_users = User.objects.filter(role='Product Manager', is_active=True).order_by('name')
     result = []
     for pm in pm_users:
-        entries = list(PMWorkEntry.objects.filter(user=pm, date=target_date).prefetch_related('attachments', 'comments'))
+        entries = list(
+            PMWorkEntry.objects.filter(user=pm, date__gte=start, date__lte=end)
+            .prefetch_related('attachments', 'comments')
+        )
         total_hours = sum(float(e.hours) for e in entries)
         categories = {}
         for e in entries:
             cat = e.category
             if cat not in categories:
-                categories[cat] = {'hours': 0, 'count': 0}
+                categories[cat] = {'hours': 0.0, 'count': 0}
             categories[cat]['hours'] = round(categories[cat]['hours'] + float(e.hours), 2)
             categories[cat]['count'] += 1
+
+        # Sprint items by type assigned to this PM
+        sprint_items = {}
+        if active_sprint:
+            for r in Requirement.objects.filter(sprint=active_sprint, assignee=pm):
+                t = r.item_type
+                sprint_items[t] = sprint_items.get(t, 0) + 1
+
+        hours_pct = round((total_hours / expected_hours * 100), 1) if expected_hours > 0 else 0
+        attention_flag = hours_pct < 50
+
         result.append({
             'user_id': pm.id,
             'user_name': pm.name,
@@ -1184,10 +1219,61 @@ def pm_work_summary(request):
             'user_role': pm.role,
             'total_hours': total_hours,
             'entry_count': len(entries),
+            'expected_hours': expected_hours,
+            'hours_pct': hours_pct,
+            'attention_flag': attention_flag,
+            'sprint_items': sprint_items,
             'categories': categories,
             'entries': PMWorkEntrySerializer(entries, many=True, context={'request': request}).data,
         })
-    return Response({'date': target_date, 'pms': result})
+
+    return Response({
+        'date': target_date,
+        'date_from': str(start),
+        'date_to': str(end),
+        'expected_hours': expected_hours,
+        'pms': result,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def cto_mini_dashboard(request):
+    """Department-wise requirement stats for CTO command view."""
+    from django.db.models import Count
+
+    released_ids = set(
+        ReleaseItem.objects.filter(release__status='Published')
+        .values_list('requirement_id', flat=True)
+    )
+
+    depts = ['DSE', 'DEE', 'SS', 'MS', 'DGE', 'DPS', 'Other', 'Tech Initiatives']
+    dept_stats = []
+    for dept in depts:
+        qs = Requirement.objects.filter(department=dept)
+        total = qs.count()
+        if total == 0:
+            continue
+        released     = qs.filter(id__in=released_ids).count()
+        not_released = total - released
+        by_pm        = qs.filter(assignee__role='Product Manager').count()
+        raise_q      = qs.filter(status='Open', sprint__isnull=True).count()
+        dept_stats.append({
+            'dept': dept,
+            'total': total,
+            'released': released,
+            'not_released': not_released,
+            'by_pm': by_pm,
+            'raise_question': raise_q,
+        })
+
+    return Response({
+        'departments': dept_stats,
+        'project_count': Project.objects.count(),
+        'active_project_count': Project.objects.filter(status='Active').count(),
+        'total_requirements': Requirement.objects.count(),
+        'released_count': len(released_ids),
+    })
 
 
 # ---------------------------------------------------------------------------

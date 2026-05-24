@@ -104,7 +104,8 @@ export const deletePMWorkAttachment = (id, attId) => api.delete(`/projects/pm-wo
 export const getPMWorkComments = (id) => api.get(`/projects/pm-work/${id}/comments/`);
 export const createPMWorkComment = (id, data) => api.post(`/projects/pm-work/${id}/comments/`, data);
 export const deletePMWorkComment = (id, cId) => api.delete(`/projects/pm-work/${id}/comments/${cId}/`);
-export const getPMWorkSummary = (date) => api.get('/projects/pm-work/summary/', { params: { date } });
+export const getPMWorkSummary = (params) => api.get('/projects/pm-work/summary/', { params });
+export const getCTOMiniDashboard = () => api.get('/projects/cto-mini-dashboard/');
 
 // Meetings
 export const getMeetings      = (params) => api.get('/projects/meetings/', { params });
