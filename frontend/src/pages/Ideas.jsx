@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { getIdeas, createIdea, voteIdea, getUsers } from '../api';
 import Modal from '../components/Modal';
 import '../components/Modal.css';
+import { useToast } from '../context/ToastContext';
 
 const statusColors = { Open:'badge-blue', 'Under Review':'badge-amber', Approved:'badge-green', Rejected:'badge-red' };
 
 export default function Ideas({ externalCreate, onExternalCreateDone }) {
+  const showToast = useToast();
   const [ideas, setIdeas] = useState([]);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(false);
@@ -19,10 +21,22 @@ export default function Ideas({ externalCreate, onExternalCreateDone }) {
 
   const save = async () => {
     if (!form.title) return;
-    await createIdea(form); setModal(false); setForm({ title:'', description:'', status:'Open' }); load();
+    try {
+      await createIdea(form);
+      showToast(`Idea "${form.title}" submitted`, 'success');
+      setModal(false); setForm({ title:'', description:'', status:'Open' }); load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || 'Failed to submit idea', 'error');
+    }
   };
 
-  const vote = async (id) => { await voteIdea(id); load(); };
+  const vote = async (id) => {
+    try {
+      await voteIdea(id);
+      showToast('Vote recorded', 'success');
+      load();
+    } catch {}
+  };
 
   return (
     <div className="page-content">

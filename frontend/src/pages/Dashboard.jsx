@@ -31,10 +31,10 @@ function useCountUp(target, ready) {
 }
 
 /* Individual animated stat card */
-function StatCard({ icon, val, label }) {
+function StatCard({ icon, val, label, color }) {
   const animated = useCountUp(val, val != null);
   return (
-    <div className="stat-card">
+    <div className={`stat-card${color ? ` stat-card--${color}` : ''}`}>
       <div className="stat-icon">{icon}</div>
       <div className="stat-val">{animated}</div>
       <div className="stat-label">{label}</div>
@@ -173,12 +173,12 @@ export default function Dashboard({ onNavigate }) {
   );
 
   const stats = [
-    { icon: '🏃', val: data.active_sprints,    label: 'Active Sprints' },
-    { icon: '✅', val: data.in_progress_tasks, label: 'Tasks In Progress' },
-    { icon: '🐛', val: data.open_bugs,          label: 'Open Bugs' },
-    { icon: '💡', val: data.approved_ideas,     label: 'Approved Ideas' },
-    { icon: '👥', val: data.total_members,      label: 'Team Members' },
-    { icon: '📦', val: data.total_items,        label: 'Total Items' },
+    { icon: '🏃', val: data.active_sprints,    label: 'Active Sprints',    color: 'blue'   },
+    { icon: '✅', val: data.in_progress_tasks, label: 'Tasks In Progress', color: 'teal'   },
+    { icon: '🐛', val: data.open_bugs,          label: 'Open Bugs',         color: 'red'    },
+    { icon: '💡', val: data.approved_ideas,     label: 'Approved Ideas',    color: 'amber'  },
+    { icon: '👥', val: data.total_members,      label: 'Team Members',      color: 'purple' },
+    { icon: '📦', val: data.total_items,        label: 'Total Items',       color: 'green'  },
   ];
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
@@ -233,12 +233,12 @@ export default function Dashboard({ onNavigate }) {
       {/* ── Stat Cards ────────────────────────────────────────────────── */}
       <div className="stats-grid">
         {stats.map(s => (
-          <StatCard key={s.label} icon={s.icon} val={s.val} label={s.label} />
+          <StatCard key={s.label} icon={s.icon} val={s.val} label={s.label} color={s.color} />
         ))}
       </div>
 
       <div className="grid-2">
-        <div className="card">
+        <div className="card card-hover">
           <div className="card-header"><span className="card-title">🏃 Active Sprint</span></div>
           <div className="card-body">
             {data.active_sprint ? (
@@ -270,7 +270,7 @@ export default function Dashboard({ onNavigate }) {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card card-hover">
           <div className="card-header"><span className="card-title">🔥 Recent Activity</span></div>
           <div className="card-body" style={{ maxHeight: 280, overflowY: 'auto' }}>
             {(data.recent_activity || []).map((a, i) => (
@@ -287,7 +287,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       <div className="grid-2">
-        <div className="card">
+        <div className="card card-hover">
           <div className="card-header"><span className="card-title">🐛 Open Bugs</span></div>
           <div className="card-body">
             {(data.open_bugs_list || []).length === 0
@@ -311,7 +311,7 @@ export default function Dashboard({ onNavigate }) {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card card-hover">
           <div className="card-header"><span className="card-title">💡 Ideas Pipeline</span></div>
           <div className="card-body">
             {(data.ideas || []).slice(0, 4).map(i => (

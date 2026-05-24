@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { getTasks, createTask, updateTask, deleteTask, getRequirements, createRequirement, updateRequirement, deleteRequirement, getBugs, createBug, updateBug, deleteBug, getSprints, getUsers } from '../api';
 import Modal from '../components/Modal';
 import '../components/Modal.css';
+import { useToast } from '../context/ToastContext';
 
 const CONFIG = {
   tasks: {
@@ -32,6 +33,7 @@ const statusBadge = s => ({ Done:'badge-green', Fixed:'badge-green', 'In Progres
 
 export default function ItemPage({ type, tab, onTabChange, externalCreate, onExternalCreateDone }) {
   const cfg = CONFIG[type];
+  const showToast = useToast();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [prioF, setPrioF] = useState('');
@@ -51,16 +53,34 @@ export default function ItemPage({ type, tab, onTabChange, externalCreate, onExt
 
   const save = async () => {
     if (!form.title) return;
-    await cfg.create(form); setModal(false); setForm({ ...empty, status: cfg.statuses[0] }); load();
+    try {
+      await cfg.create(form);
+      showToast(`${cfg.label} "${form.title}" created`, 'success');
+      setModal(false); setForm({ ...empty, status: cfg.statuses[0] }); load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || `Failed to create ${cfg.label}`, 'error');
+    }
   };
 
   const changeStatus = async (id, status) => {
-    await cfg.update(id, { status }); load();
+    try {
+      await cfg.update(id, { status });
+      showToast(`${id} moved to ${status}`, 'info');
+      load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || 'Status update failed', 'error');
+    }
   };
 
   const remove = async (id) => {
     if (!confirm(`Delete ${id}?`)) return;
-    await cfg.del(id); load();
+    try {
+      await cfg.del(id);
+      showToast(`${id} deleted`, 'info');
+      load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || 'Delete failed', 'error');
+    }
   };
 
   const activeView = tab || 'list';

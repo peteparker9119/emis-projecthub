@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getSprints, createSprint, updateSprint, deleteSprint } from '../api';
 import Modal from '../components/Modal';
 import '../components/Modal.css';
+import { useToast } from '../context/ToastContext';
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
 const EMPTY_FORM = { name: '', start_date: '', end_date: '', goal: '', capacity: 40, status: 'Planning' };
@@ -364,6 +365,7 @@ function CompareTab({ sprints }) {
 
 /* ── Main Sprints Page ───────────────────────────────────────────────────── */
 export default function Sprints() {
+  const showToast = useToast();
   const [sprints, setSprints] = useState([]);
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('');
@@ -384,21 +386,36 @@ export default function Sprints() {
 
   const save = async () => {
     if (!form.name) return;
-    await createSprint(form);
-    setModal(false);
-    setForm(EMPTY_FORM);
-    load();
+    try {
+      await createSprint(form);
+      showToast(`Sprint "${form.name}" created`, 'success');
+      setModal(false);
+      setForm(EMPTY_FORM);
+      load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || 'Failed to create sprint', 'error');
+    }
   };
 
   const activate = async (id) => {
-    await updateSprint(id, { status: 'Active' });
-    load();
+    try {
+      await updateSprint(id, { status: 'Active' });
+      showToast('Sprint activated', 'success');
+      load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || 'Failed to activate sprint', 'error');
+    }
   };
 
   const remove = async (id) => {
     if (!confirm('Delete this sprint?')) return;
-    await deleteSprint(id);
-    load();
+    try {
+      await deleteSprint(id);
+      showToast('Sprint deleted', 'info');
+      load();
+    } catch (e) {
+      showToast(e?.response?.data?.error || 'Failed to delete sprint', 'error');
+    }
   };
 
   return (

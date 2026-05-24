@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { getLatestScrumAlert, deactivateScrumAlert } from './api';
@@ -160,7 +161,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppShell />
+        <ToastProvider>
+          <AppShell />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );

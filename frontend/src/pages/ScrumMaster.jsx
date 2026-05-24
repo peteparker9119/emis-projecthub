@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import {
   getScrumDashboard, getSprints, getRequirements, getUsers,
   pullReqToSprint, bulkPullToSprint,
@@ -41,13 +42,16 @@ function Pill({ label, bg, color }) {
   return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: bg, color }}>{label}</span>;
 }
 
+const COLOR_VARIANT = { '#065f46': 'teal', '#1d4ed8': 'blue', '#dc2626': 'red', '#b45309': 'amber', '#1a56db': 'blue' };
+
 function StatCard({ icon, label, value, color = '#1a56db', sub }) {
+  const variant = COLOR_VARIANT[color] || 'blue';
   return (
-    <div style={{ background: 'white', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 12px rgba(0,0,0,.06)', border: '1px solid var(--border)' }}>
-      <div style={{ fontSize: 20 }}>{icon}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color, margin: '4px 0 2px' }}>{value}</div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{sub}</div>}
+    <div className={`stat-card stat-card--${variant}`}>
+      <div className="stat-icon">{icon}</div>
+      <div className="stat-val">{value}</div>
+      <div className="stat-label">{label}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -59,12 +63,14 @@ function StandupModal({ member, date, sprintId, onClose, onSaved }) {
   const [err, setErr] = useState('');
   const F = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
   const readOnly = !!member.standup;
+  const showToast = useToast();
 
   const handleSave = async () => {
     if (!form.today.trim()) { setErr("Today's plan is required"); return; }
     setSaving(true);
     try {
       await createStandup({ user: member.id, date, sprint: sprintId || null, ...form });
+      showToast(`Standup submitted for ${member.name}`, 'success');
       onSaved();
       onClose();
     } catch (e) { setErr(e?.response?.data?.detail || 'Save failed'); setSaving(false); }
@@ -111,6 +117,7 @@ function BulkPullModal({ selected, reqs, sprints, onClose, onPulled }) {
   const [sprintId, setSprintId] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const showToast = useToast();
   const selectedReqs = reqs.filter(r => selected.has(r.id));
   const activeSprints = sprints.filter(s => s.status === 'Active' || s.status === 'Planning');
 
@@ -119,6 +126,7 @@ function BulkPullModal({ selected, reqs, sprints, onClose, onPulled }) {
     setBusy(true);
     try {
       await bulkPullToSprint([...selected], sprintId);
+      showToast(`${selected.size} requirement${selected.size > 1 ? 's' : ''} pulled into sprint`, 'success');
       onPulled();
       onClose();
     } catch (e) { setErr(e?.response?.data?.error || 'Pull failed'); setBusy(false); }
@@ -167,6 +175,7 @@ function BulkPullModal({ selected, reqs, sprints, onClose, onPulled }) {
 // ── Notify Modal ──────────────────────────────────────────────────────────────
 function NotifyModal({ item, users, onClose, onSent }) {
   const { user } = useAuth();
+  const showToast = useToast();
   const defaultMsg = `Your ${item.type} "${item.title}" (${item.id}) is overdue by ${item.days_overdue} day${item.days_overdue !== 1 ? 's' : ''}. Please review and update the status urgently.`;
   const [msg, setMsg] = useState(defaultMsg);
   const [recipientId, setRecipientId] = useState(item.assignee_id || '');
@@ -186,6 +195,7 @@ function NotifyModal({ item, users, onClose, onSent }) {
         item_type: item.type,
         item_id: item.id,
       });
+      showToast(`Breach notification sent for ${item.id}`, 'success');
       onSent();
       onClose();
     } catch (e) { setErr(e?.response?.data?.detail || 'Send failed'); setBusy(false); }
@@ -539,9 +549,122 @@ function SprintControlPanel({ sprints, users, busy, msg, onAction, currentUser }
   );
 }
 
+// ── SM Action Strip (compact collapsible panels) ──────────────────────────────
+function SMActionStrip({
+  alertForm, setAlertForm, alertSending, alertErr, activeAlert,
+  onPushAlert, onDeactivateAlert,
+  sprints, users, currentUser, sprintBusy, sprintMsg, onSprintAction,
+}) {
+  const [open, setOpen] = useState(null); // 'alert' | 'sprint' | null
+
+  const toggle = (key) => setOpen(p => p === key ? null : key);
+  const actionable = sprints.filter(s => s.status !== 'Completed');
+
+  const BtnPill = ({ id, icon, label, badge, color }) => (
+    <button
+      onClick={() => toggle(id)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
+        borderRadius: 24, border: `1.5px solid ${open === id ? color : 'var(--border)'}`,
+        background: open === id ? color : 'white',
+        color: open === id ? 'white' : 'var(--text)',
+        fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit',
+        transition: 'all .15s', boxShadow: open === id ? `0 4px 14px ${color}44` : '0 1px 4px rgba(0,0,0,.07)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {icon} {label}
+      {badge != null && (
+        <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 10, background: open === id ? 'rgba(255,255,255,.3)' : `${color}22`, color: open === id ? 'white' : color, marginLeft: 2 }}>
+          {badge}
+        </span>
+      )}
+      <span style={{ fontSize: 10, opacity: .7, marginLeft: 2 }}>{open === id ? '▲' : '▼'}</span>
+    </button>
+  );
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      {/* Pill Row */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: open ? 0 : 0 }}>
+        <BtnPill id="alert"  icon="📣" label="Push Alert"     color="#065f46" badge={activeAlert ? '1 active' : null} />
+        <BtnPill id="sprint" icon="🏃" label="Sprint Controls" color="#1a56db" badge={actionable.length > 0 ? actionable.length : null} />
+        {sprintMsg && (
+          <span style={{ fontSize: 12, fontWeight: 600, color: sprintMsg.startsWith('✅') ? '#065f46' : '#dc2626', background: sprintMsg.startsWith('✅') ? '#d1fae5' : '#fef2f2', border: `1px solid ${sprintMsg.startsWith('✅') ? '#6ee7b7' : '#fecaca'}`, borderRadius: 20, padding: '5px 14px' }}>
+            {sprintMsg}
+          </span>
+        )}
+      </div>
+
+      {/* Expandable: Push Alert */}
+      {open === 'alert' && (
+        <div style={{ marginTop: 10, background: 'white', borderRadius: 14, border: '1.5px solid #6ee7b7', padding: '18px 22px', boxShadow: '0 4px 16px rgba(5,150,105,.1)', animation: 'panelDown .2s ease' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#065f46', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            📣 Push Global Alert
+            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10 }}>Broadcasts to all open sessions</span>
+          </div>
+
+          {activeAlert && (
+            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+              <span style={{ fontSize: 16 }}>⚡</span>
+              <span style={{ flex: 1, color: '#92400e' }}><strong>Active alert:</strong> {activeAlert.message}</span>
+              <button onClick={() => onDeactivateAlert(activeAlert.id)}
+                style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #fcd34d', background: 'white', color: '#92400e', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                Deactivate
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 10, alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Alert Type</div>
+              <select value={alertForm.alert_type} onChange={e => setAlertForm(p => ({ ...p, alert_type: e.target.value }))}
+                style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                <option value="standup">🏆 Standup Time</option>
+                <option value="breach">🚨 Sprint Breach</option>
+                <option value="urgent">🔴 Urgent</option>
+                <option value="info">📢 General Info</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Message</div>
+              <input value={alertForm.message} onChange={e => setAlertForm(p => ({ ...p, message: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && onPushAlert()}
+                placeholder="e.g. Daily standup starting now — join the call!"
+                style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <button onClick={onPushAlert} disabled={alertSending || !alertForm.message.trim()}
+              style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: alertSending || !alertForm.message.trim() ? 'var(--surface2)' : 'linear-gradient(135deg,#065f46,#0d9488)', color: alertSending || !alertForm.message.trim() ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 13, cursor: !alertForm.message.trim() ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              {alertSending ? '⏳ Sending…' : '🚀 Push to All'}
+            </button>
+          </div>
+          {alertErr && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{alertErr}</div>}
+        </div>
+      )}
+
+      {/* Expandable: Sprint Controls */}
+      {open === 'sprint' && (
+        <div style={{ marginTop: 10, background: 'white', borderRadius: 14, border: '1.5px solid #93c5fd', padding: '18px 22px', boxShadow: '0 4px 16px rgba(26,86,219,.1)', animation: 'panelDown .2s ease' }}>
+          <SprintControlPanel
+            sprints={sprints}
+            users={users}
+            currentUser={currentUser}
+            busy={sprintBusy}
+            msg={null}
+            onAction={onSprintAction}
+          />
+        </div>
+      )}
+
+      <style>{`@keyframes panelDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ScrumMaster() {
   const { user } = useAuth();
+  const showToast = useToast();
   const [dashData, setDashData]  = useState(null);
   const [reqs, setReqs]          = useState([]);
   const [sprints, setSprints]    = useState([]);
@@ -633,13 +756,16 @@ export default function ScrumMaster() {
       await createScrumAlert(alertForm);
       setAlertSent(p => !p); // toggle to re-trigger useEffect
       setAlertForm({ alert_type: 'standup', message: '' });
+      showToast('Global alert pushed to all team members', 'success');
     } catch (e) {
-      setAlertErr(e?.response?.data?.error || 'Failed to push alert');
+      const msg = e?.response?.data?.error || 'Failed to push alert';
+      setAlertErr(msg);
+      showToast(msg, 'error');
     } finally { setAlertSending(false); }
   };
 
   const handleDeactivateAlert = async (id) => {
-    try { await deactivateScrumAlert(id); setActiveAlert(null); } catch {}
+    try { await deactivateScrumAlert(id); setActiveAlert(null); showToast('Alert deactivated', 'info'); } catch {}
   };
 
   if (loading) return (
@@ -698,65 +824,32 @@ export default function ScrumMaster() {
         </div>
       </div>
 
-      {/* ── Push Global Alert Card ─────────────────────────────────── */}
-      <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #6ee7b7', padding: '18px 22px', marginBottom: 22, boxShadow: '0 2px 12px rgba(5,150,105,.08)' }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: '#065f46', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          📣 Push Global Alert
-          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10 }}>Broadcasts to all open sessions</span>
-        </div>
-
-        {activeAlert && (
-          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
-            <span style={{ fontSize: 16 }}>⚡</span>
-            <span style={{ flex: 1, color: '#92400e' }}><strong>Active alert:</strong> {activeAlert.message}</span>
-            <button onClick={() => handleDeactivateAlert(activeAlert.id)}
-              style={{ padding: '4px 12px', borderRadius: 7, border: '1px solid #fcd34d', background: 'white', color: '#92400e', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
-              Deactivate
-            </button>
-          </div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 10, alignItems: 'flex-end' }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Alert Type</div>
-            <select value={alertForm.alert_type} onChange={e => setAlertForm(p => ({ ...p, alert_type: e.target.value }))}
-              style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              <option value="standup">🏆 Standup Time</option>
-              <option value="breach">🚨 Sprint Breach</option>
-              <option value="urgent">🔴 Urgent</option>
-              <option value="info">📢 General Info</option>
-            </select>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Message</div>
-            <input value={alertForm.message} onChange={e => setAlertForm(p => ({ ...p, message: e.target.value }))}
-              onKeyDown={e => e.key === 'Enter' && handlePushAlert()}
-              placeholder="e.g. Daily standup starting now — join the call!" style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
-          </div>
-          <button onClick={handlePushAlert} disabled={alertSending || !alertForm.message.trim()}
-            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: alertSending || !alertForm.message.trim() ? 'var(--surface2)' : 'linear-gradient(135deg,#065f46,#0d9488)', color: alertSending || !alertForm.message.trim() ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 13, cursor: !alertForm.message.trim() ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
-            {alertSending ? '⏳ Sending…' : '🚀 Push to All'}
-          </button>
-        </div>
-        {alertErr && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{alertErr}</div>}
-      </div>
-
-      {/* ── Sprint Control Panel ──────────────────────────────────── */}
-      <SprintControlPanel
+      {/* ── Compact Action Strip ─────────────────────────────────── */}
+      <SMActionStrip
+        alertForm={alertForm}
+        setAlertForm={setAlertForm}
+        alertSending={alertSending}
+        alertErr={alertErr}
+        activeAlert={activeAlert}
+        onPushAlert={handlePushAlert}
+        onDeactivateAlert={handleDeactivateAlert}
         sprints={sprints}
         users={users}
         currentUser={user}
-        busy={sprintActionBusy}
-        msg={sprintActionMsg}
-        onAction={async (sprintId, newStatus) => {
+        sprintBusy={sprintActionBusy}
+        sprintMsg={sprintActionMsg}
+        onSprintAction={async (sprintId, newStatus) => {
           setSprintActionBusy(true);
           setSprintActionMsg('');
           try {
             await updateSprint(sprintId, { status: newStatus });
             setSprintActionMsg(`✅ Sprint moved to ${newStatus}`);
+            showToast(`Sprint moved to ${newStatus}`, 'success');
             load();
           } catch (e) {
-            setSprintActionMsg('❌ ' + (e?.response?.data?.error || 'Action failed'));
+            const msg = e?.response?.data?.error || 'Action failed';
+            setSprintActionMsg('❌ ' + msg);
+            showToast(msg, 'error');
           } finally {
             setSprintActionBusy(false);
           }
@@ -764,7 +857,7 @@ export default function ScrumMaster() {
       />
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 26 }}>
+      <div className="stats-grid" style={{ marginBottom: 26 }}>
         <StatCard icon="📅" label="Standup Today" value={`${submitted_count}/${total_team}`} sub={`${completionPct}% submitted`} color="#065f46" />
         <StatCard icon="🚀" label="Ready to Pull" value={readyReqs.length} sub="Grooming complete" color="#1d4ed8" />
         <StatCard icon="🚨" label="Breached Items" value={breached.length} sub="Overdue in sprint" color="#dc2626" />
