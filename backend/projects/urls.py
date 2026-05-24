@@ -99,4 +99,12 @@ urlpatterns = [
     path('releases/<str:pk>/', views.release_detail, name='release-detail'),
     path('releases/<str:pk>/items/', views.release_add_item, name='release-add-item'),
     path('releases/<str:pk>/items/<int:item_id>/', views.release_remove_item, name='release-remove-item'),
+
+    # Capacity Tracking
+    path('user-leaves/',                          views.user_leave_list,       name='user-leave-list'),
+    path('user-leaves/<int:pk>/',                 views.user_leave_detail,     name='user-leave-detail'),
+    path('sprint-capacity/',                      views.sprint_capacity_list,  name='sprint-capacity-list'),
+    path('sprint-capacity/<int:pk>/',             views.sprint_capacity_detail,name='sprint-capacity-detail'),
+    path('capacity-summary/',                     views.capacity_summary,      name='capacity-summary'),
+    path('user-sprint-activity/<int:user_id>/<str:sprint_id>/', views.user_sprint_activity, name='user-sprint-activity'),
 ]

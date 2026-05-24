@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team, UserLeave, UserSprintCapacity
 
 
 class SprintSerializer(serializers.ModelSerializer):
@@ -511,3 +511,57 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     def get_sprint_count(self, obj):
         return 0  # extend later when sprints link to projects
+
+
+# ─── Capacity Tracking Serializers ───────────────────────────────────────────
+
+class UserLeaveSerializer(serializers.ModelSerializer):
+    user_name  = serializers.SerializerMethodField()
+    sprint_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = UserLeave
+        fields = [
+            'id', 'user', 'user_name', 'sprint', 'sprint_name',
+            'date', 'leave_type', 'notes', 'created_by', 'created_at',
+        ]
+        read_only_fields = ['created_at']
+
+    def get_user_name(self, obj):
+        return obj.user.name if obj.user else None
+
+    def get_sprint_name(self, obj):
+        return obj.sprint.name if obj.sprint else None
+
+
+class UserSprintCapacitySerializer(serializers.ModelSerializer):
+    user_name    = serializers.SerializerMethodField()
+    user_initials = serializers.SerializerMethodField()
+    user_role    = serializers.SerializerMethodField()
+    user_team    = serializers.SerializerMethodField()
+    sprint_name  = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = UserSprintCapacity
+        fields = [
+            'id', 'user', 'user_name', 'user_initials', 'user_role', 'user_team',
+            'sprint', 'sprint_name',
+            'base_story_points', 'notes',
+            'created_by', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_user_name(self, obj):
+        return obj.user.name if obj.user else None
+
+    def get_user_initials(self, obj):
+        return obj.user.initials() if obj.user else None
+
+    def get_user_role(self, obj):
+        return obj.user.role if obj.user else None
+
+    def get_user_team(self, obj):
+        return obj.user.team if obj.user else None
+
+    def get_sprint_name(self, obj):
+        return obj.sprint.name if obj.sprint else None

@@ -678,3 +678,46 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# ─── Capacity Tracking ────────────────────────────────────────────────────────
+
+class UserLeave(models.Model):
+    LEAVE_CHOICES = [
+        ('planned', 'Planned Leave'),
+        ('sick',    'Sick Leave'),
+        ('holiday', 'Public Holiday'),
+    ]
+    user       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='leaves')
+    sprint     = models.ForeignKey(Sprint, on_delete=models.SET_NULL, null=True, blank=True, related_name='leaves')
+    date       = models.DateField()
+    leave_type = models.CharField(max_length=20, choices=LEAVE_CHOICES, default='planned')
+    notes      = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='managed_leaves')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table    = 'user_leaves'
+        ordering    = ['date']
+        unique_together = ('user', 'date')
+
+    def __str__(self):
+        return f"{self.user.name} — {self.leave_type} on {self.date}"
+
+
+class UserSprintCapacity(models.Model):
+    user              = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sprint_capacities')
+    sprint            = models.ForeignKey(Sprint, on_delete=models.CASCADE, related_name='user_capacities')
+    base_story_points = models.IntegerField(default=0)
+    notes             = models.CharField(max_length=500, blank=True)
+    created_by        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='managed_capacities')
+    created_at        = models.DateTimeField(auto_now_add=True)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = 'user_sprint_capacity'
+        unique_together = ('user', 'sprint')
+        ordering        = ['sprint', 'user__name']
+
+    def __str__(self):
+        return f"{self.user.name} / {self.sprint.name}: {self.base_story_points} SP"

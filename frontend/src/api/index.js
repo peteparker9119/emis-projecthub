@@ -139,6 +139,17 @@ export const getTeams = () => api.get('/projects/teams/');
 export const getMyTeam = () => api.get('/projects/teams/my/');
 export const getTeamStandups = (id, date) => api.get(`/projects/teams/${id}/standups/`, { params: date ? { date } : {} });
 
+// Capacity Tracking
+export const getUserLeaves       = (params) => api.get('/projects/user-leaves/', { params });
+export const createUserLeave     = (data)   => api.post('/projects/user-leaves/', data);
+export const updateUserLeave     = (id, data) => api.patch(`/projects/user-leaves/${id}/`, data);
+export const deleteUserLeave     = (id)     => api.delete(`/projects/user-leaves/${id}/`);
+export const getSprintCapacity   = (params) => api.get('/projects/sprint-capacity/', { params });
+export const setSprintCapacity   = (data)   => api.post('/projects/sprint-capacity/', data);
+export const updateSprintCapacity= (id, data) => api.patch(`/projects/sprint-capacity/${id}/`, data);
+export const getCapacitySummary  = (params) => api.get('/projects/capacity-summary/', { params });
+export const getUserSprintActivity = (userId, sprintId) => api.get(`/projects/user-sprint-activity/${userId}/${sprintId}/`);
+
 // Releases
 export const getReleases = (params) => api.get('/projects/releases/', { params });
 export const createRelease = (data) => api.post('/projects/releases/', data);

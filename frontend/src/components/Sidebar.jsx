@@ -23,6 +23,7 @@ const ALL_MENUS = [
   // ── Insights (Manager+) ───────────────────────────────────────
   { id: 'reports',       label: 'Reports',           icon: '📊', section: 'Insights',    roles: ['CTO','MANAGER'] },
   { id: 'members',       label: 'Team Members',      icon: '👥', section: 'Insights',    roles: ['CTO','MANAGER'] },
+  { id: 'capacity',      label: 'Capacity Tracker',  icon: '⚖️', section: 'Insights',    roles: ['CTO','MANAGER'] },
 
   // ── CTO Command ───────────────────────────────────────────────
   { id: 'mytasks',       label: 'My Tasks',          icon: '📌', section: 'CTO Command', roles: ['CTO'] },
@@ -45,6 +46,7 @@ const ALL_MENUS = [
   { id: 'releases',      label: 'Releases',          icon: '🚀', section: 'Scrum',       roles: ['SM'] },
   { id: 'pmactivity',    label: 'PM Activity',       icon: '📊', section: 'Scrum',       roles: ['SM'] },
   { id: 'members',       label: 'Team Members',      icon: '👥', section: 'Scrum',       roles: ['SM'] },
+  { id: 'capacity',      label: 'Capacity Tracker',  icon: '⚖️', section: 'Scrum',       roles: ['SM'] },
   { id: 'meetings',      label: 'Meetings',           icon: '📅', section: 'Scrum',       roles: ['SM'] },
   { id: 'pmdailylog',    label: 'My Work Log',       icon: '📓', section: 'My Work',     roles: ['SM'] },
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['SM'] },

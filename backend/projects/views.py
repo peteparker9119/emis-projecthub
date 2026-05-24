@@ -1,4 +1,7 @@
-from django.db.models import Q
+from datetime import date, timedelta
+
+from django.db.models import Q, Sum
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -6,7 +9,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from users.models import User
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team
+from .models import (
+    Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity,
+    Project, RequirementComment, WorkLog, RequirementAttachment, Standup,
+    Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment,
+    Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team,
+    UserLeave, UserSprintCapacity,
+)
 from .utils import notify_mentions, notify_assignee_change
 from .serializers import (
     SprintSerializer, TaskSerializer, RequirementSerializer, RequirementGroomingSerializer,
@@ -15,7 +24,7 @@ from .serializers import (
     StandupSerializer, NotificationSerializer,
     PMWorkEntrySerializer, PMWorkEntryAttachmentSerializer, PMWorkEntryCommentSerializer,
     MeetingSerializer, ScrumAlertSerializer, EpicSerializer, ReleaseSerializer, ReleaseItemSerializer,
-    TeamSerializer,
+    TeamSerializer, UserLeaveSerializer, UserSprintCapacitySerializer,
 )
 
 
@@ -1698,3 +1707,163 @@ def team_standups(request, pk):
                        'yesterday': s.yesterday if s else '', 'today': s.today if s else '',
                        'blockers': s.blockers if s else '', 'submitted_at': str(s.submitted_at) if s else None})
     return Response({'team_id': team.id, 'team': team.name, 'date': target_date, 'members': result})
+
+
+# ---------------------------------------------------------------------------
+# Capacity Tracking
+# ---------------------------------------------------------------------------
+
+def _working_days(start, end):
+    count, d = 0, start
+    while d <= end:
+        if d.weekday() < 5:
+            count += 1
+        d += timedelta(days=1)
+    return count
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def user_leave_list(request):
+    if request.method == "GET":
+        qs = UserLeave.objects.select_related("user", "sprint", "created_by")
+        sprint_id = request.query_params.get("sprint")
+        user_id   = request.query_params.get("user")
+        if sprint_id:
+            qs = qs.filter(sprint_id=sprint_id)
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        return Response(UserLeaveSerializer(qs, many=True).data)
+    data = request.data.copy()
+    data["created_by"] = request.user.id
+    s = UserLeaveSerializer(data=data)
+    s.is_valid(raise_exception=True)
+    s.save()
+    return Response(s.data, status=201)
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def user_leave_detail(request, pk):
+    leave = get_object_or_404(UserLeave, pk=pk)
+    if request.method == "PATCH":
+        s = UserLeaveSerializer(leave, data=request.data, partial=True)
+        s.is_valid(raise_exception=True)
+        s.save()
+        return Response(s.data)
+    leave.delete()
+    return Response(status=204)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def sprint_capacity_list(request):
+    if request.method == "GET":
+        qs = UserSprintCapacity.objects.select_related("user", "sprint")
+        sprint_id = request.query_params.get("sprint")
+        if sprint_id:
+            qs = qs.filter(sprint_id=sprint_id)
+        return Response(UserSprintCapacitySerializer(qs, many=True).data)
+    data = request.data.copy()
+    data["created_by"] = request.user.id
+    existing = UserSprintCapacity.objects.filter(
+        user=data.get("user"), sprint=data.get("sprint")
+    ).first()
+    if existing:
+        s = UserSprintCapacitySerializer(existing, data=data, partial=True)
+        s.is_valid(raise_exception=True)
+        s.save()
+        return Response(s.data, status=200)
+    s = UserSprintCapacitySerializer(data=data)
+    s.is_valid(raise_exception=True)
+    s.save()
+    return Response(s.data, status=201)
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def sprint_capacity_detail(request, pk):
+    cap = get_object_or_404(UserSprintCapacity, pk=pk)
+    if request.method == "PATCH":
+        s = UserSprintCapacitySerializer(cap, data=request.data, partial=True)
+        s.is_valid(raise_exception=True)
+        s.save()
+        return Response(s.data)
+    cap.delete()
+    return Response(status=204)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def capacity_summary(request):
+    sprint_id = request.query_params.get("sprint")
+    if sprint_id:
+        sprints = Sprint.objects.filter(id=sprint_id)
+    else:
+        sprints = Sprint.objects.filter(status__in=["Active", "Planning"])
+    result = []
+    for sprint in sprints:
+        wdays = _working_days(sprint.start_date, sprint.end_date)
+        caps  = UserSprintCapacity.objects.filter(sprint=sprint).select_related("user")
+        users_data = []
+        for cap in caps:
+            u = cap.user
+            leaves = UserLeave.objects.filter(user=u, date__gte=sprint.start_date, date__lte=sprint.end_date)
+            planned_days = leaves.filter(leave_type="planned").count()
+            sick_days    = leaves.filter(leave_type="sick").count()
+            total_days   = planned_days + sick_days
+            sp_per_day   = cap.base_story_points / max(wdays, 1)
+            available_sp = max(0, cap.base_story_points - round(sp_per_day * total_days))
+            planned_sp = (Requirement.objects.filter(sprint=sprint, assignee=u).aggregate(t=Sum("story_points"))["t"] or 0)
+            used_sp    = (Requirement.objects.filter(sprint=sprint, assignee=u, status="Done").aggregate(t=Sum("story_points"))["t"] or 0)
+            over_capacity  = planned_sp > available_sp
+            under_capacity = available_sp > 0 and planned_sp < available_sp * 0.7
+            users_data.append({
+                "capacity_id": cap.id, "user_id": u.id, "user_name": u.name,
+                "user_initials": u.initials(), "team": u.team, "role": u.role,
+                "base_sp": cap.base_story_points, "available_sp": available_sp,
+                "planned_sp": planned_sp, "used_sp": used_sp,
+                "working_days": wdays, "planned_leave_days": planned_days,
+                "sick_leave_days": sick_days, "over_capacity": over_capacity,
+                "under_capacity": under_capacity,
+                "utilization_pct": round(planned_sp / available_sp * 100) if available_sp > 0 else 0,
+                "notes": cap.notes,
+                "leaves": UserLeaveSerializer(leaves, many=True).data,
+            })
+        result.append({
+            "sprint_id": sprint.id, "sprint_name": sprint.name,
+            "sprint_status": sprint.status,
+            "start_date": str(sprint.start_date), "end_date": str(sprint.end_date),
+            "working_days": wdays,
+            "total_available_sp": sum(u["available_sp"] for u in users_data),
+            "total_planned_sp":   sum(u["planned_sp"]   for u in users_data),
+            "over_count":  sum(1 for u in users_data if u["over_capacity"]),
+            "under_count": sum(1 for u in users_data if u["under_capacity"]),
+            "users": users_data,
+        })
+    return Response(result)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_sprint_activity(request, user_id, sprint_id):
+    u      = get_object_or_404(User, id=user_id)
+    sprint = get_object_or_404(Sprint, id=sprint_id)
+    today     = date.today()
+    yesterday = today - timedelta(days=1)
+    reqs    = Requirement.objects.filter(sprint=sprint, assignee=u)
+    tasks   = Task.objects.filter(sprint=sprint, assignee=u)
+    backlog = Requirement.objects.filter(sprint__isnull=True, assignee=u)
+    std_today     = Standup.objects.filter(user=u, date=today).first()
+    std_yesterday = Standup.objects.filter(user=u, date=yesterday).first()
+    leaves  = UserLeave.objects.filter(user=u, date__gte=sprint.start_date, date__lte=sprint.end_date)
+    return Response({
+        "user": {"id": u.id, "name": u.name, "initials": u.initials(), "role": u.role, "team": u.team},
+        "sprint": {"id": sprint.id, "name": sprint.name},
+        "sprint_requirements":  RequirementSerializer(reqs, many=True).data,
+        "sprint_tasks":         TaskSerializer(tasks, many=True).data,
+        "backlog_requirements": RequirementSerializer(backlog, many=True).data,
+        "standup_today":     StandupSerializer(std_today).data    if std_today     else None,
+        "standup_yesterday": StandupSerializer(std_yesterday).data if std_yesterday else None,
+        "leaves":            UserLeaveSerializer(leaves, many=True).data,
+    })

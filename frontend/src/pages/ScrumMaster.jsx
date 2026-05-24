@@ -10,6 +10,8 @@ import {
   getTeams, getTeamStandups,
   updateSprint,
   sprintCloseCheck,
+  getCapacitySummary,
+  getUserSprintActivity,
 } from '../api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -701,6 +703,16 @@ export default function ScrumMaster() {
   const [teams, setTeams]             = useState([]);
   const [scrumLoading, setScrumLoading] = useState(false);
 
+  // Capacity overview (Feature 4)
+  const [capacitySummary, setCapacitySummary] = useState(null);
+
+  // User activity drill-down (Feature 6)
+  const [memberActivity,   setMemberActivity]   = useState(null);
+  const [activityLoading,  setActivityLoading]  = useState(false);
+
+  // Scrum meeting item filter (Feature 5)
+  const [scrumItemFilter,  setScrumItemFilter]  = useState('all'); // 'all'|'reqs'|'tasks'|'backlog'
+
   // Scrum Alert push
   const [alertForm, setAlertForm]       = useState({ alert_type: 'standup', message: '' });
   const [alertSending, setAlertSending] = useState(false);
@@ -729,6 +741,14 @@ export default function ScrumMaster() {
   useEffect(() => {
     getTeams().then(r => setTeams(r.data)).catch(() => {});
   }, []);
+
+  // Load capacity summary whenever dashData (active sprint) changes
+  useEffect(() => {
+    if (!dashData?.active_sprint?.id) return;
+    getCapacitySummary({ sprint: dashData.active_sprint.id })
+      .then(r => setCapacitySummary(r.data?.[0] || null))
+      .catch(() => {});
+  }, [dashData]);
 
   // Load scrum meeting standups when team or date changes
   useEffect(() => {
@@ -857,12 +877,51 @@ export default function ScrumMaster() {
       />
 
       {/* Stat cards */}
-      <div className="stats-grid" style={{ marginBottom: 26 }}>
+      <div className="stats-grid" style={{ marginBottom: capacitySummary ? 14 : 26 }}>
         <StatCard icon="📅" label="Standup Today" value={`${submitted_count}/${total_team}`} sub={`${completionPct}% submitted`} color="#065f46" />
         <StatCard icon="🚀" label="Ready to Pull" value={readyReqs.length} sub="Grooming complete" color="#1d4ed8" />
         <StatCard icon="🚨" label="Breached Items" value={breached.length} sub="Overdue in sprint" color="#dc2626" />
         <StatCard icon="⏳" label="In Pipeline" value={backlog.length} sub="Backlog requirements" color="#b45309" />
       </div>
+
+      {/* ── Capacity Overview Strip (Feature 4) ──────────────────── */}
+      {capacitySummary && (
+        <div style={{ background: 'white', border: '1.5px solid var(--border)', borderRadius: 14, padding: '14px 20px', marginBottom: 22, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <span style={{ fontSize: 16 }}>⚖️</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Sprint Capacity</span>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', flex: 1 }}>
+            {[
+              { label: 'Available SP', val: capacitySummary.total_available_sp, color: '#065f46', bg: '#d1fae5' },
+              { label: 'Planned SP',   val: capacitySummary.total_planned_sp,   color: capacitySummary.total_planned_sp > capacitySummary.total_available_sp ? '#dc2626' : '#1d4ed8', bg: capacitySummary.total_planned_sp > capacitySummary.total_available_sp ? '#fef2f2' : '#eff6ff' },
+              { label: 'Working Days', val: capacitySummary.working_days,       color: '#6d28d9', bg: '#f5f3ff' },
+            ].map(s => (
+              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: s.color, background: s.bg, padding: '3px 10px', borderRadius: 20 }}>{s.val ?? '—'}</span>
+                <span style={{ fontSize: 11, color: 'var(--text2)' }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {capacitySummary.over_count > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', padding: '4px 12px', borderRadius: 20 }}>
+                🔴 {capacitySummary.over_count} over capacity
+              </span>
+            )}
+            {capacitySummary.under_count > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#b45309', border: '1px solid #fcd34d', padding: '4px 12px', borderRadius: 20 }}>
+                ⚠️ {capacitySummary.under_count} under-utilized
+              </span>
+            )}
+            {capacitySummary.over_count === 0 && capacitySummary.under_count === 0 && capacitySummary.total_available_sp > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', padding: '4px 12px', borderRadius: 20 }}>
+                ✅ Capacity balanced
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap' }}>
@@ -1116,8 +1175,8 @@ export default function ScrumMaster() {
       {/* ═══ SCRUM MEETING TAB ══════════════════════════════════════════════ */}
       {tab === 'scrummeeting' && (
         <div>
-          {/* Controls */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* Controls row */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Date</div>
               <input
@@ -1131,7 +1190,7 @@ export default function ScrumMaster() {
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Team</div>
               <select
                 value={scrumTeamId}
-                onChange={e => { setScrumTeamId(e.target.value); setScrumMember(null); }}
+                onChange={e => { setScrumTeamId(e.target.value); setScrumMember(null); setMemberActivity(null); }}
                 style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: 'white' }}
               >
                 <option value="">— Select a team —</option>
@@ -1140,10 +1199,59 @@ export default function ScrumMaster() {
             </div>
           </div>
 
+          {/* Quick filter chips (Feature 5) */}
+          {scrumTeamId && scrumData && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.4px', marginRight: 4 }}>Filter:</span>
+              {[
+                { id: 'all',     label: '👥 All Members' },
+                { id: 'missing', label: '🔴 Missing Standup' },
+                { id: 'done',    label: '✅ Submitted' },
+              ].map(f => (
+                <button key={f.id} onClick={() => setScrumItemFilter(f.id)}
+                  style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', fontFamily: 'inherit', transition: 'all .15s',
+                    background: scrumItemFilter === f.id ? 'linear-gradient(135deg,#065f46,#059669)' : 'var(--surface2)',
+                    color: scrumItemFilter === f.id ? 'white' : 'var(--text2)',
+                    boxShadow: scrumItemFilter === f.id ? '0 2px 8px rgba(5,150,105,.3)' : 'none',
+                  }}>
+                  {f.label}
+                </button>
+              ))}
+              {active_sprint && (
+                <>
+                  <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.4px', marginRight: 4 }}>Activity:</span>
+                  {[
+                    { id: 'all',     label: '📋 All' },
+                    { id: 'reqs',    label: '📋 Requirements' },
+                    { id: 'tasks',   label: '✅ Tasks' },
+                    { id: 'backlog', label: '📦 Backlog' },
+                  ].map(f => (
+                    <button key={`act-${f.id}`} onClick={() => setScrumItemFilter(f.id)}
+                      style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', fontFamily: 'inherit', transition: 'all .15s',
+                        background: scrumItemFilter === f.id ? 'linear-gradient(135deg,#1a56db,#3b82f6)' : 'var(--surface2)',
+                        color: scrumItemFilter === f.id ? 'white' : 'var(--text2)',
+                        boxShadow: scrumItemFilter === f.id ? '0 2px 8px rgba(26,86,219,.3)' : 'none',
+                      }}>
+                      {f.label}
+                    </button>
+                  ))}
+                </>
+              )}
+              {scrumMember && (
+                <button onClick={() => { setScrumMember(null); setMemberActivity(null); }}
+                  style={{ marginLeft: 'auto', padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'white', color: 'var(--text2)', fontFamily: 'inherit' }}>
+                  ✕ Clear selection
+                </button>
+              )}
+            </div>
+          )}
+
           {!scrumTeamId && (
             <div style={{ background: 'white', borderRadius: 14, padding: '48px 32px', textAlign: 'center', border: '1px solid var(--border)', color: 'var(--text3)' }}>
               <div style={{ fontSize: 36, marginBottom: 10 }}>🏟️</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Select a team to view standups</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Select a team to begin the scrum meeting</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>You can then review each member's standups, backlog, and sprint items</div>
             </div>
           )}
 
@@ -1151,85 +1259,231 @@ export default function ScrumMaster() {
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text2)', fontSize: 13 }}>Loading…</div>
           )}
 
-          {scrumTeamId && !scrumLoading && scrumData && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'start' }}>
-              {/* Member grid */}
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text2)' }}>
-                  {scrumData.team} — {scrumData.date} · {scrumData.members.filter(m => m.submitted).length}/{scrumData.members.length} submitted
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-                  {scrumData.members.map(m => (
-                    <div
-                      key={m.user_id}
-                      onClick={() => setScrumMember(scrumMember?.user_id === m.user_id ? null : m)}
-                      style={{
-                        background: scrumMember?.user_id === m.user_id ? (m.submitted ? '#d1fae5' : '#fef2f2') : 'white',
-                        border: `1.5px solid ${m.submitted ? '#a7f3d0' : '#fecaca'}`,
-                        borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
-                        transition: 'all .15s',
-                        boxShadow: scrumMember?.user_id === m.user_id ? '0 4px 16px rgba(0,0,0,.1)' : 'none',
-                      }}
-                      onMouseEnter={e => { if (scrumMember?.user_id !== m.user_id) e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.08)'; }}
-                      onMouseLeave={e => { if (scrumMember?.user_id !== m.user_id) e.currentTarget.style.boxShadow = 'none'; }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                        <Avatar initials={m.initials} size={36}
-                          bg={m.submitted ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#dc2626,#ef4444)'} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text2)' }}>{m.role}</div>
-                        </div>
-                      </div>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                        background: m.submitted ? '#d1fae5' : '#fef2f2',
-                        color: m.submitted ? '#065f46' : '#dc2626',
-                      }}>
-                        {m.submitted ? '✅ Submitted' : '🔴 Missing'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {scrumTeamId && !scrumLoading && scrumData && (() => {
+            const filteredScrumMembers = scrumData.members.filter(m => {
+              if (scrumItemFilter === 'missing') return !m.submitted;
+              if (scrumItemFilter === 'done')    return m.submitted;
+              return true;
+            });
 
-              {/* Detail panel */}
-              {scrumMember && (
-                <div style={{ width: 340, background: 'white', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', flexShrink: 0 }}>
-                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Avatar initials={scrumMember.initials} size={40}
-                      bg={scrumMember.submitted ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#dc2626,#ef4444)'} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{scrumMember.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text2)' }}>{scrumMember.role}</div>
-                    </div>
-                    <button onClick={() => setScrumMember(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text3)' }}>✕</button>
+            return (
+              <div>
+                {/* Member grid */}
+                <div style={{ marginBottom: scrumMember ? 20 : 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text2)' }}>
+                    {scrumData.team} — {scrumData.date} · {scrumData.members.filter(m => m.submitted).length}/{scrumData.members.length} submitted
+                    {filteredScrumMembers.length !== scrumData.members.length && (
+                      <span style={{ fontSize: 11, marginLeft: 8, color: '#1a56db', background: '#eff6ff', padding: '2px 9px', borderRadius: 10 }}>
+                        showing {filteredScrumMembers.length}
+                      </span>
+                    )}
                   </div>
-                  {scrumMember.submitted ? (
-                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      {[
-                        { label: '📅 Yesterday', key: 'yesterday', color: '#1d4ed8', bg: '#eff6ff' },
-                        { label: '⚡ Today',     key: 'today',     color: '#15803d', bg: '#f0fdf4' },
-                        { label: '🚧 Blockers',  key: 'blockers',  color: '#dc2626', bg: '#fef2f2' },
-                      ].map(({ label, key, color, bg }) => (
-                        <div key={key}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>{label}</div>
-                          <div style={{ fontSize: 13, lineHeight: 1.6, background: bg, borderRadius: 10, padding: '10px 14px', whiteSpace: 'pre-wrap', minHeight: 36, color: 'var(--text)' }}>
-                            {scrumMember[key] || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>Not provided</span>}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                    {filteredScrumMembers.map(m => (
+                      <div
+                        key={m.user_id}
+                        onClick={async () => {
+                          if (scrumMember?.user_id === m.user_id) {
+                            setScrumMember(null); setMemberActivity(null); return;
+                          }
+                          setScrumMember(m);
+                          setMemberActivity(null);
+                          if (active_sprint?.id) {
+                            setActivityLoading(true);
+                            try {
+                              const r = await getUserSprintActivity(m.user_id, active_sprint.id);
+                              setMemberActivity(r.data);
+                            } catch { setMemberActivity(null); }
+                            finally { setActivityLoading(false); }
+                          }
+                        }}
+                        style={{
+                          background: scrumMember?.user_id === m.user_id ? (m.submitted ? '#d1fae5' : '#fef2f2') : 'white',
+                          border: `1.5px solid ${scrumMember?.user_id === m.user_id ? (m.submitted ? '#059669' : '#dc2626') : m.submitted ? '#a7f3d0' : '#fecaca'}`,
+                          borderRadius: 12, padding: '12px 14px', cursor: 'pointer', transition: 'all .15s',
+                          boxShadow: scrumMember?.user_id === m.user_id ? '0 4px 16px rgba(0,0,0,.12)' : 'none',
+                        }}
+                        onMouseEnter={e => { if (scrumMember?.user_id !== m.user_id) e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.08)'; }}
+                        onMouseLeave={e => { if (scrumMember?.user_id !== m.user_id) e.currentTarget.style.boxShadow = scrumMember?.user_id === m.user_id ? '0 4px 16px rgba(0,0,0,.12)' : 'none'; }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                          <Avatar initials={m.initials} size={34}
+                            bg={m.submitted ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#dc2626,#ef4444)'} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text2)' }}>{m.role}</div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text3)' }}>
-                      <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>No standup submitted</div>
-                    </div>
-                  )}
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: m.submitted ? '#d1fae5' : '#fef2f2', color: m.submitted ? '#065f46' : '#dc2626' }}>
+                          {m.submitted ? '✅ Submitted' : '🔴 Missing'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* ── Full Activity Panel (Feature 6) ──────────────── */}
+                {scrumMember && (
+                  <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,.07)' }}>
+                    {/* Panel header */}
+                    <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 14, background: 'linear-gradient(135deg,#f8faff,#f0fdf4)' }}>
+                      <Avatar initials={scrumMember.initials} size={44}
+                        bg={scrumMember.submitted ? 'linear-gradient(135deg,#065f46,#059669)' : 'linear-gradient(135deg,#dc2626,#ef4444)'} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 16, fontWeight: 800 }}>{scrumMember.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text2)' }}>{scrumMember.role}{active_sprint ? ` · Sprint: ${active_sprint.name}` : ''}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: scrumMember.submitted ? '#d1fae5' : '#fef2f2', color: scrumMember.submitted ? '#065f46' : '#dc2626' }}>
+                          {scrumMember.submitted ? '✅ Standup Done' : '🔴 No Standup'}
+                        </span>
+                        {activityLoading && (
+                          <div style={{ width: 18, height: 18, border: '2px solid var(--border)', borderTopColor: '#065f46', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                        )}
+                        <button onClick={() => { setScrumMember(null); setMemberActivity(null); }}
+                          style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, padding: '4px 9px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)' }}>✕</button>
+                      </div>
+                    </div>
+
+                    {/* Panel body */}
+                    <div style={{ padding: '20px 22px' }}>
+                      {/* Standup today + yesterday — always show */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                        {/* Today */}
+                        <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '14px 16px', border: '1px solid #bbf7d0' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            ⚡ Today's Plan
+                          </div>
+                          {scrumMember.submitted ? (
+                            <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{scrumMember.today || '—'}</div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>Standup not submitted</div>
+                          )}
+                          {scrumMember.submitted && scrumMember.blockers && (
+                            <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', background: '#fef2f2', borderRadius: 8, padding: '8px 10px' }}>
+                              🚧 <strong>Blocker:</strong> {scrumMember.blockers}
+                            </div>
+                          )}
+                        </div>
+                        {/* Yesterday */}
+                        <div style={{ background: '#eff6ff', borderRadius: 12, padding: '14px 16px', border: '1px solid #bfdbfe' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+                            📅 Yesterday's Work
+                          </div>
+                          {scrumMember.submitted ? (
+                            <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{scrumMember.yesterday || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>Not provided</span>}</div>
+                          ) : memberActivity?.standup_yesterday ? (
+                            <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{memberActivity.standup_yesterday.today || '—'}</div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>No data for yesterday</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {activityLoading ? (
+                        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text2)', fontSize: 13 }}>Loading activity data…</div>
+                      ) : memberActivity ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+
+                          {/* Sprint Items (reqs) */}
+                          {(scrumItemFilter === 'all' || scrumItemFilter === 'reqs') && (
+                            <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: '14px 16px' }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                📋 Sprint Requirements
+                                <span style={{ fontSize: 10, background: '#eff6ff', color: '#1d4ed8', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{memberActivity.sprint_requirements?.length ?? 0}</span>
+                              </div>
+                              {(!memberActivity.sprint_requirements || memberActivity.sprint_requirements.length === 0) ? (
+                                <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>No requirements assigned in sprint</div>
+                              ) : memberActivity.sprint_requirements.map(r => (
+                                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                                  <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8', flexShrink: 0 }}>{r.id}</span>
+                                  <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 8, flexShrink: 0,
+                                    background: r.status === 'Done' ? '#d1fae5' : r.status === 'In Progress' ? '#eff6ff' : '#f1f5f9',
+                                    color: r.status === 'Done' ? '#065f46' : r.status === 'In Progress' ? '#1d4ed8' : '#64748b' }}>
+                                    {r.status}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Sprint Tasks */}
+                          {(scrumItemFilter === 'all' || scrumItemFilter === 'tasks') && (
+                            <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: '14px 16px' }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                ✅ Sprint Tasks
+                                <span style={{ fontSize: 10, background: '#f0fdf4', color: '#15803d', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{memberActivity.sprint_tasks?.length ?? 0}</span>
+                              </div>
+                              {(!memberActivity.sprint_tasks || memberActivity.sprint_tasks.length === 0) ? (
+                                <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>No tasks assigned in sprint</div>
+                              ) : memberActivity.sprint_tasks.map(t => (
+                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                                  <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: '#15803d', flexShrink: 0 }}>{t.id}</span>
+                                  <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 8, flexShrink: 0,
+                                    background: t.status === 'Done' ? '#d1fae5' : t.status === 'In Progress' ? '#eff6ff' : '#f1f5f9',
+                                    color: t.status === 'Done' ? '#065f46' : t.status === 'In Progress' ? '#1d4ed8' : '#64748b' }}>
+                                    {t.status}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Backlog Items */}
+                          {(scrumItemFilter === 'all' || scrumItemFilter === 'backlog') && (
+                            <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: '14px 16px' }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: '#b45309', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                📦 Backlog Items
+                                <span style={{ fontSize: 10, background: '#fef3c7', color: '#b45309', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{memberActivity.backlog_requirements?.length ?? 0}</span>
+                              </div>
+                              {(!memberActivity.backlog_requirements || memberActivity.backlog_requirements.length === 0) ? (
+                                <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>No backlog items assigned</div>
+                              ) : memberActivity.backlog_requirements.slice(0, 8).map(r => (
+                                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                  <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: '#b45309', flexShrink: 0 }}>{r.id}</span>
+                                  <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 8, background: '#fef9c3', color: '#92400e', flexShrink: 0 }}>
+                                    {r.grooming_status?.replace(/_/g, ' ') || 'Pending'}
+                                  </span>
+                                </div>
+                              ))}
+                              {memberActivity.backlog_requirements?.length > 8 && (
+                                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>+{memberActivity.backlog_requirements.length - 8} more</div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Leave status */}
+                          {memberActivity.leaves?.length > 0 && (
+                            <div style={{ background: '#fef3c7', borderRadius: 12, padding: '14px 16px', border: '1px solid #fcd34d' }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: '#b45309', marginBottom: 10 }}>
+                                🏖 Leaves This Sprint ({memberActivity.leaves.length})
+                              </div>
+                              {memberActivity.leaves.map(l => (
+                                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #fde68a' }}>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: '#b45309' }}>{l.date}</span>
+                                  <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 8, background: 'white', color: '#92400e', fontWeight: 600 }}>
+                                    {l.leave_type === 'planned' ? 'Planned' : l.leave_type === 'sick' ? 'Sick' : 'Holiday'}
+                                  </span>
+                                  {l.notes && <span style={{ fontSize: 11, color: '#b45309' }}>{l.notes}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : !active_sprint ? (
+                        <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 13 }}>
+                          No active sprint — detailed activity requires an active sprint
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
