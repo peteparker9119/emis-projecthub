@@ -67,6 +67,102 @@ def sprint_detail(request, pk):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sprint_close_check(request, pk):
+    """
+    Pre-close validation. Returns can_close=True only when every item in the
+    sprint is in a terminal state.  If not, returns a full breakdown of pending
+    items grouped by assignee (with team) so the SM knows exactly who is
+    blocking closure.
+    """
+    try:
+        sprint = Sprint.objects.get(pk=pk)
+    except Sprint.DoesNotExist:
+        return Response({'error': 'Sprint not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    DONE_REQ   = {'Done'}
+    DONE_TASK  = {'Done'}
+    DONE_BUG   = {'Fixed', 'Closed'}
+
+    pending = []
+
+    for r in Requirement.objects.filter(sprint=sprint).select_related('assignee'):
+        if r.status not in DONE_REQ:
+            pending.append({
+                'id': r.id, 'title': r.title, 'type': 'Requirement',
+                'item_type': r.item_type, 'status': r.status,
+                'priority': r.priority,
+                'assignee_id':   r.assignee_id,
+                'assignee_name': r.assignee.name if r.assignee else 'Unassigned',
+                'team':          r.assignee.team if r.assignee else '',
+            })
+
+    for t in Task.objects.filter(sprint=sprint).select_related('assignee'):
+        if t.status not in DONE_TASK:
+            pending.append({
+                'id': t.id, 'title': t.title, 'type': 'Task',
+                'item_type': 'Task', 'status': t.status,
+                'priority': t.priority,
+                'assignee_id':   t.assignee_id,
+                'assignee_name': t.assignee.name if t.assignee else 'Unassigned',
+                'team':          t.assignee.team if t.assignee else '',
+            })
+
+    for b in Bug.objects.filter(sprint=sprint).select_related('assignee'):
+        if b.status not in DONE_BUG:
+            pending.append({
+                'id': b.id, 'title': b.title, 'type': 'Bug',
+                'item_type': 'Bug', 'status': b.status,
+                'priority': b.priority,
+                'assignee_id':   b.assignee_id,
+                'assignee_name': b.assignee.name if b.assignee else 'Unassigned',
+                'team':          b.assignee.team if b.assignee else '',
+            })
+
+    if not pending:
+        return Response({'can_close': True, 'pending_count': 0, 'pending_items': [], 'by_assignee': [], 'by_team': []})
+
+    # Group by assignee
+    assignee_map = {}
+    for item in pending:
+        key = item['assignee_id'] or 'unassigned'
+        if key not in assignee_map:
+            assignee_map[key] = {
+                'assignee_id':   item['assignee_id'],
+                'assignee_name': item['assignee_name'],
+                'team':          item['team'],
+                'count':         0,
+                'items':         [],
+            }
+        assignee_map[key]['count'] += 1
+        assignee_map[key]['items'].append(item)
+
+    # Group by team
+    team_map = {}
+    for item in pending:
+        team = item['team'] or 'No Team'
+        if team not in team_map:
+            team_map[team] = {'team': team, 'count': 0, 'members': set()}
+        team_map[team]['count'] += 1
+        team_map[team]['members'].add(item['assignee_name'])
+
+    by_team = [
+        {'team': t['team'], 'count': t['count'], 'members': sorted(t['members'])}
+        for t in team_map.values()
+    ]
+
+    return Response({
+        'can_close':     False,
+        'pending_count': len(pending),
+        'sprint_id':     sprint.id,
+        'sprint_name':   sprint.name,
+        'pending_items': pending,
+        'by_assignee':   sorted(assignee_map.values(), key=lambda x: -x['count']),
+        'by_team':       sorted(by_team, key=lambda x: -x['count']),
+    })
+
+
 # ---------------------------------------------------------------------------
 # Tasks
 # ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ urlpatterns = [
     # Sprints
     path('sprints/', views.sprint_list, name='sprint-list'),
     path('sprints/<str:pk>/', views.sprint_detail, name='sprint-detail'),
+    path('sprints/<str:pk>/close-check/', views.sprint_close_check, name='sprint-close-check'),
 
     # Tasks
     path('tasks/', views.task_list, name='task-list'),

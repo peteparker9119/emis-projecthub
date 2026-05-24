@@ -8,6 +8,7 @@ import {
   createScrumAlert, deactivateScrumAlert, getScrumAlerts,
   getTeams, getTeamStandups,
   updateSprint,
+  sprintCloseCheck,
 } from '../api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -222,19 +223,257 @@ function NotifyModal({ item, users, onClose, onSent }) {
   );
 }
 
+const TYPE_ICON  = { Requirement: '📋', Task: '✅', Bug: '🐛' };
+const STATUS_COLOR = {
+  'To Do': '#64748b', 'In Progress': '#1d4ed8', 'Review': '#d97706',
+  'Open': '#dc2626', 'Fixed': '#16a34a', 'Closed': '#16a34a',
+};
+
+// ── Sprint Close Blocker Modal ────────────────────────────────────────────────
+function CloseBlockerModal({ data, users, currentUser, onClose, onForceClose }) {
+  const [view, setView]         = useState('team');   // 'team' | 'assignee' | 'items'
+  const [notifying, setNotifying] = useState(new Set());
+  const [notified, setNotified]   = useState(new Set());
+
+  const sendNotification = async (assigneeId, assigneeName, items) => {
+    if (!assigneeId) return;
+    setNotifying(p => new Set(p).add(assigneeId));
+    try {
+      await createNotification({
+        recipient: assigneeId,
+        sender: currentUser?.id,
+        title: `🚨 Sprint "${data.sprint_name}" cannot close — ${items.length} item(s) pending`,
+        message: `Hi ${assigneeName.split(' ')[0]},\n\nSprint "${data.sprint_name}" is awaiting closure but you have ${items.length} item(s) not yet Done:\n\n${items.map(i => `• ${i.id}: ${i.title} [${i.status}]`).join('\n')}\n\nPlease update your items to Done so the sprint can be closed.\n\nRegards, ${currentUser?.name || 'SM'}`,
+        item_type: 'sprint',
+        item_id: data.sprint_id,
+      });
+      setNotified(p => new Set(p).add(assigneeId));
+    } catch {}
+    finally { setNotifying(p => { const n = new Set(p); n.delete(assigneeId); return n; }); }
+  };
+
+  const TAB = (id, label, count) => (
+    <button onClick={() => setView(id)} style={{
+      padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+      border: 'none', fontFamily: 'inherit',
+      background: view === id ? '#dc2626' : 'var(--surface2)',
+      color: view === id ? 'white' : 'var(--text2)',
+    }}>
+      {label} {count != null && <span style={{ background: view === id ? 'rgba(255,255,255,.3)' : '#fef2f2', color: view === id ? 'white' : '#dc2626', borderRadius: 10, padding: '0 6px', fontSize: 10, fontWeight: 800, marginLeft: 4 }}>{count}</span>}
+    </button>
+  );
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'white', borderRadius: 20, width: '90vw', maxWidth: 860, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.3)' }}>
+
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg,#dc2626,#ef4444)', padding: '20px 24px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
+                🚫 Sprint Cannot Be Closed
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', marginTop: 4 }}>
+                <strong style={{ color: 'white' }}>{data.sprint_name}</strong> has <strong style={{ color: '#fef08a' }}>{data.pending_count} pending item{data.pending_count !== 1 ? 's' : ''}</strong> that must reach <span style={{ background: 'rgba(255,255,255,.2)', padding: '1px 8px', borderRadius: 8 }}>Done</span> before closing.
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 18, color: 'white' }}>×</button>
+          </div>
+
+          {/* Team summary chips */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {data.by_team.map(t => (
+              <span key={t.team} style={{ fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,.2)', color: 'white', padding: '3px 12px', borderRadius: 20 }}>
+                {t.team || 'No Team'} · {t.count} pending
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 8, padding: '14px 24px 0', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          {TAB('team',     '👥 By Team',     data.by_team.length)}
+          {TAB('assignee', '👤 By Assignee', data.by_assignee.length)}
+          {TAB('items',    '📋 All Items',   data.pending_count)}
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+
+          {/* ── BY TEAM ── */}
+          {view === 'team' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {data.by_team.map(team => {
+                const teamAssignees = data.by_assignee.filter(a => (a.team || 'No Team') === (team.team || 'No Team'));
+                return (
+                  <div key={team.team} style={{ border: '1.5px solid #fecaca', borderRadius: 14, overflow: 'hidden' }}>
+                    {/* Team header */}
+                    <div style={{ background: '#fef2f2', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 20 }}>🏢</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#dc2626' }}>
+                          {team.team || 'No Team Assigned'}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#b45309', marginTop: 1 }}>
+                          {team.members.join(' · ')}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#dc2626', background: '#fee2e2', padding: '3px 12px', borderRadius: 20 }}>
+                        {team.count} pending
+                      </span>
+                    </div>
+                    {/* Members in team */}
+                    {teamAssignees.map(a => (
+                      <div key={a.assignee_id || 'unassigned'} style={{ padding: '12px 18px', borderTop: '1px solid #fee2e2', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#dc2626,#ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                          {a.assignee_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{a.assignee_name}</div>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                            {a.items.map(it => (
+                              <span key={it.id} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: '#f1f5f9', color: '#475569' }}>
+                                {TYPE_ICON[it.type]} {it.id} · <span style={{ color: STATUS_COLOR[it.status] || '#64748b' }}>{it.status}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        {a.assignee_id && (
+                          <button
+                            disabled={notifying.has(a.assignee_id)}
+                            onClick={() => sendNotification(a.assignee_id, a.assignee_name, a.items)}
+                            style={{ padding: '6px 14px', borderRadius: 8, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: notifying.has(a.assignee_id) ? 'wait' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0, background: notified.has(a.assignee_id) ? '#d1fae5' : 'linear-gradient(135deg,#b45309,#d97706)', color: notified.has(a.assignee_id) ? '#065f46' : 'white' }}>
+                            {notified.has(a.assignee_id) ? '✓ Notified' : notifying.has(a.assignee_id) ? '⏳' : '📢 Notify'}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── BY ASSIGNEE ── */}
+          {view === 'assignee' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {data.by_assignee.map(a => (
+                <div key={a.assignee_id || 'unassigned'} style={{ background: 'white', border: '1.5px solid #fecaca', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ background: '#fef2f2', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#dc2626,#ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                      {a.assignee_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800 }}>{a.assignee_name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 1 }}>
+                        {a.team ? `Team ${a.team}` : 'No team'} · <span style={{ color: '#dc2626', fontWeight: 700 }}>{a.count} pending</span>
+                      </div>
+                    </div>
+                    {a.assignee_id && (
+                      <button
+                        disabled={notifying.has(a.assignee_id)}
+                        onClick={() => sendNotification(a.assignee_id, a.assignee_name, a.items)}
+                        style={{ padding: '7px 16px', borderRadius: 9, border: 'none', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: notifying.has(a.assignee_id) ? 'wait' : 'pointer', background: notified.has(a.assignee_id) ? '#d1fae5' : 'linear-gradient(135deg,#b45309,#d97706)', color: notified.has(a.assignee_id) ? '#065f46' : 'white' }}>
+                        {notified.has(a.assignee_id) ? '✓ Notified' : notifying.has(a.assignee_id) ? '⏳ Sending…' : '📢 Notify'}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ padding: '0 18px 12px' }}>
+                    {a.items.map(it => (
+                      <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #fef2f2' }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>{TYPE_ICON[it.type] || '📌'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 700 }}>{it.id} · {it.title}</div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
+                            <span style={{ fontSize: 10, color: 'var(--text2)' }}>{it.type}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: PRIORITY_COLORS[it.priority]?.color || '#64748b' }}>{it.priority}</span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 10, background: '#fef2f2', color: STATUS_COLOR[it.status] || '#dc2626', flexShrink: 0 }}>{it.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── ALL ITEMS ── */}
+          {view === 'items' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.pending_items.map(it => (
+                <div key={it.id} style={{ background: 'white', border: '1.5px solid #fecaca', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{TYPE_ICON[it.type] || '📌'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: '#dc2626' }}>{it.id}</span>
+                      <Pill label={it.type} bg="#f1f5f9" color="#475569" />
+                      <Pill label={it.priority} {...PRIORITY_COLORS[it.priority] || { bg: '#f8fafc', color: '#64748b' }} />
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 8, background: '#fef2f2', color: STATUS_COLOR[it.status] || '#dc2626' }}>{it.status}</span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{it.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 3 }}>
+                      👤 {it.assignee_name} {it.team && `· Team ${it.team}`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, background: '#fafafa' }}>
+          <div style={{ fontSize: 12, color: 'var(--text2)' }}>
+            Resolve all <strong>{data.pending_count}</strong> pending items or notify assignees before closing.
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ padding: '8px 20px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>
+              Go Back
+            </button>
+            <button onClick={onForceClose}
+              style={{ padding: '8px 20px', borderRadius: 9, border: '1.5px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>
+              ⚠ Force Close Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Sprint Control Panel ──────────────────────────────────────────────────────
-function SprintControlPanel({ sprints, busy, msg, onAction }) {
+function SprintControlPanel({ sprints, users, busy, msg, onAction, currentUser }) {
+  const [checking, setChecking]         = useState(false);
+  const [blockerData, setBlockerData]   = useState(null); // non-null = show modal
+
   const actionable = sprints.filter(s => s.status !== 'Completed');
   if (actionable.length === 0) return null;
+
+  const handleAction = async (sprintId, to) => {
+    if (to !== 'Completed') { onAction(sprintId, to); return; }
+    // Pre-close check
+    setChecking(true);
+    try {
+      const res = await sprintCloseCheck(sprintId);
+      if (res.data.can_close) {
+        onAction(sprintId, 'Completed');
+      } else {
+        setBlockerData(res.data);
+      }
+    } catch { onAction(sprintId, 'Completed'); } // fail-open
+    finally { setChecking(false); }
+  };
 
   const statusConfig = {
     Planning:  { next: [{ label: '▶ Start', to: 'Active', color: '#065f46', bg: 'linear-gradient(135deg,#065f46,#059669)' }], badge: { bg: '#ede9fe', color: '#7c3aed' } },
     Active:    { next: [
-      { label: '⏸ Hold', to: 'On Hold', color: '#b45309', bg: 'linear-gradient(135deg,#b45309,#d97706)' },
+      { label: '⏸ Hold',  to: 'On Hold',   color: '#b45309', bg: 'linear-gradient(135deg,#b45309,#d97706)' },
       { label: '✓ Close', to: 'Completed', color: '#dc2626', bg: 'linear-gradient(135deg,#dc2626,#ef4444)' },
     ], badge: { bg: '#d1fae5', color: '#065f46' } },
     'On Hold': { next: [
-      { label: '▶ Resume', to: 'Active', color: '#065f46', bg: 'linear-gradient(135deg,#065f46,#059669)' },
+      { label: '▶ Resume', to: 'Active',    color: '#065f46', bg: 'linear-gradient(135deg,#065f46,#059669)' },
       { label: '✓ Close', to: 'Completed', color: '#dc2626', bg: 'linear-gradient(135deg,#dc2626,#ef4444)' },
     ], badge: { bg: '#fef9c3', color: '#92400e' } },
   };
@@ -258,7 +497,6 @@ function SprintControlPanel({ sprints, busy, msg, onAction }) {
           if (!cfg) return null;
           return (
             <div key={sprint.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)' }}>
-              {/* Sprint info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
                   <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#065f46' }}>{sprint.id}</span>
@@ -269,16 +507,14 @@ function SprintControlPanel({ sprints, busy, msg, onAction }) {
                   {sprint.start_date} → {sprint.end_date} · {sprint.task_count ?? '?'} items
                 </div>
               </div>
-
-              {/* Action buttons */}
               <div style={{ display: 'flex', gap: 8 }}>
                 {cfg.next.map(action => (
                   <button
                     key={action.to}
-                    disabled={busy}
-                    onClick={() => onAction(sprint.id, action.to)}
-                    style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: busy ? 'var(--surface2)' : action.bg, color: busy ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 12, cursor: busy ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all .15s', boxShadow: busy ? 'none' : '0 2px 8px rgba(0,0,0,.15)' }}>
-                    {busy ? '⏳' : action.label}
+                    disabled={busy || checking}
+                    onClick={() => handleAction(sprint.id, action.to)}
+                    style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: (busy || checking) ? 'var(--surface2)' : action.bg, color: (busy || checking) ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 12, cursor: (busy || checking) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', transition: 'all .15s', boxShadow: (busy || checking) ? 'none' : '0 2px 8px rgba(0,0,0,.15)' }}>
+                    {checking && action.to === 'Completed' ? '🔍 Checking…' : busy ? '⏳' : action.label}
                   </button>
                 ))}
               </div>
@@ -286,6 +522,19 @@ function SprintControlPanel({ sprints, busy, msg, onAction }) {
           );
         })}
       </div>
+
+      {blockerData && (
+        <CloseBlockerModal
+          data={blockerData}
+          users={users}
+          currentUser={currentUser}
+          onClose={() => setBlockerData(null)}
+          onForceClose={() => {
+            setBlockerData(null);
+            onAction(blockerData.sprint_id, 'Completed');
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -495,6 +744,8 @@ export default function ScrumMaster() {
       {/* ── Sprint Control Panel ──────────────────────────────────── */}
       <SprintControlPanel
         sprints={sprints}
+        users={users}
+        currentUser={user}
         busy={sprintActionBusy}
         msg={sprintActionMsg}
         onAction={async (sprintId, newStatus) => {

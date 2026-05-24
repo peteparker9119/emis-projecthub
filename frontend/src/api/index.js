@@ -15,6 +15,7 @@ export const createSprint = (data) => api.post('/projects/sprints/', data);
 export const updateSprint = (id, data) => api.patch(`/projects/sprints/${id}/`, data);
 export const deleteSprint = (id) => api.delete(`/projects/sprints/${id}/`);
 export const activateSprint = (id) => api.patch(`/projects/sprints/${id}/`, { status: 'Active' });
+export const sprintCloseCheck = (id) => api.get(`/projects/sprints/${id}/close-check/`);
 
 // Tasks
 export const getTasks = (params) => api.get('/projects/tasks/', { params });
