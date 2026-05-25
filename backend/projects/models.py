@@ -721,3 +721,48 @@ class UserSprintCapacity(models.Model):
 
     def __str__(self):
         return f"{self.user.name} / {self.sprint.name}: {self.base_story_points} SP"
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+class ChatRoom(models.Model):
+    ROOM_TYPES = [('direct', 'Direct'), ('group', 'Group')]
+    room_type  = models.CharField(max_length=10, choices=ROOM_TYPES, default='direct')
+    name       = models.CharField(max_length=200, blank=True)  # group rooms only
+    members    = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='chat_rooms', blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_chat_rooms')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chat_rooms'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name or f"DM Room {self.id}"
+
+
+class ChatMessage(models.Model):
+    room            = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
+    sender          = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sent_chat_messages')
+    text            = models.TextField(blank=True)
+    attachment      = models.FileField(upload_to='chat_attachments/', blank=True, null=True)
+    attachment_name = models.CharField(max_length=255, blank=True)
+    attachment_size = models.IntegerField(default=0)
+    created_at      = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chat_messages'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.sender} @ {self.room}: {self.text[:40]}"
+
+
+class ChatReadReceipt(models.Model):
+    room         = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='read_receipts')
+    user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_read_receipts')
+    last_read_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = 'chat_read_receipts'
+        unique_together = ('room', 'user')

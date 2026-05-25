@@ -100,6 +100,16 @@ urlpatterns = [
     path('releases/<str:pk>/items/', views.release_add_item, name='release-add-item'),
     path('releases/<str:pk>/items/<int:item_id>/', views.release_remove_item, name='release-remove-item'),
 
+    # Chat
+    path('chat/rooms/',                         views.chat_rooms,                 name='chat-rooms'),
+    path('chat/rooms/direct/',                  views.chat_get_or_create_direct,  name='chat-direct'),
+    path('chat/rooms/group/',                   views.chat_create_group,          name='chat-group'),
+    path('chat/rooms/<int:pk>/',                views.chat_room_detail,           name='chat-room-detail'),
+    path('chat/rooms/<int:pk>/messages/',       views.chat_messages,              name='chat-messages'),
+    path('chat/rooms/<int:pk>/read/',           views.chat_mark_read,             name='chat-mark-read'),
+    path('chat/messages/<int:pk>/',             views.chat_message_delete,        name='chat-message-delete'),
+    path('chat/unread/',                        views.chat_unread_count,          name='chat-unread'),
+
     # Capacity Tracking
     path('user-leaves/',                          views.user_leave_list,       name='user-leave-list'),
     path('user-leaves/<int:pk>/',                 views.user_leave_detail,     name='user-leave-detail'),

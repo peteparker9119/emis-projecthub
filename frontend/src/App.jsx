@@ -31,6 +31,7 @@ import Epics from './pages/Epics';
 import Releases from './pages/Releases';
 import TeamDashboard from './pages/TeamDashboard';
 import CapacityTracker from './pages/CapacityTracker';
+import ChatWidget from './components/ChatWidget';
 
 const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '📢' };
 const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
@@ -150,6 +151,7 @@ function AppShell() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <ScrumAlertBanner />
+      <ChatWidget />
       <Sidebar currentPage={page} onNavigate={setPage} />
       <main style={{ marginLeft: 'var(--sidebar-w)', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Topbar currentPage={page} onNavigate={setPage} />

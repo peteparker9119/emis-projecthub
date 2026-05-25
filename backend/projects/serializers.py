@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team, UserLeave, UserSprintCapacity
+from .models import Sprint, Task, Requirement, RequirementGrooming, Bug, Idea, Activity, Project, RequirementComment, WorkLog, RequirementAttachment, Standup, Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment, Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team, UserLeave, UserSprintCapacity, ChatRoom, ChatMessage, ChatReadReceipt
 
 
 class SprintSerializer(serializers.ModelSerializer):
@@ -565,3 +565,60 @@ class UserSprintCapacitySerializer(serializers.ModelSerializer):
 
     def get_sprint_name(self, obj):
         return obj.sprint.name if obj.sprint else None
+
+
+# ── Chat serializers ──────────────────────────────────────────────────────────
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    sender_id       = serializers.IntegerField(source='sender.id', read_only=True)
+    sender_name     = serializers.CharField(source='sender.name', read_only=True)
+    sender_initials = serializers.SerializerMethodField()
+    attachment_url  = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ChatMessage
+        fields = ['id', 'room', 'sender_id', 'sender_name', 'sender_initials',
+                  'text', 'attachment_url', 'attachment_name', 'attachment_size', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_sender_initials(self, obj):
+        return obj.sender.initials() if obj.sender else '?'
+
+    def get_attachment_url(self, obj):
+        if obj.attachment:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.attachment.url) if request else obj.attachment.url
+        return None
+
+
+class ChatRoomSerializer(serializers.ModelSerializer):
+    members_info = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ChatRoom
+        fields = ['id', 'room_type', 'name', 'members_info', 'last_message', 'unread_count', 'created_at']
+
+    def get_members_info(self, obj):
+        return [{'id': u.id, 'name': u.name, 'initials': u.initials()} for u in obj.members.all()]
+
+    def get_last_message(self, obj):
+        msg = obj.messages.last()
+        if not msg:
+            return None
+        return {
+            'id': msg.id,
+            'sender_name': msg.sender.name if msg.sender else '?',
+            'text': msg.text[:80] if msg.text else ('📎 ' + msg.attachment_name),
+            'created_at': str(msg.created_at),
+        }
+
+    def get_unread_count(self, obj):
+        user = self.context.get('request').user if self.context.get('request') else None
+        if not user:
+            return 0
+        receipt = obj.read_receipts.filter(user=user).first()
+        if not receipt:
+            return obj.messages.exclude(sender=user).count()
+        return obj.messages.exclude(sender=user).filter(created_at__gt=receipt.last_read_at).count()

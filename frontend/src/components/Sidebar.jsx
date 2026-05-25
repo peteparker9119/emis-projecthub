@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const ALL_MENUS = [
@@ -64,8 +65,34 @@ const ALL_MENUS = [
   { id: 'profile',       label: 'My Profile',        icon: '👤', section: 'Personal',    roles: ['PM','TL'] },
 ];
 
+// ── Per-user localStorage order ───────────────────────────────────────────────
+function loadOrder(userId) {
+  try { return JSON.parse(localStorage.getItem(`sidebar_order_${userId}`) || '{}'); } catch { return {}; }
+}
+function saveOrder(userId, order) {
+  try { localStorage.setItem(`sidebar_order_${userId}`, JSON.stringify(order)); } catch {}
+}
+
 export default function Sidebar({ currentPage, onNavigate, badges = {} }) {
   const { user, logout } = useAuth();
+  const [sectionOrders, setSectionOrders] = useState(() => user ? loadOrder(user.id) : {});
+  const [dragState, setDragState] = useState(null); // {section, fromId}
+
+  const reorder = useCallback((section, fromId, toId) => {
+    setSectionOrders(prev => {
+      const base = ALL_MENUS.filter(m => m.section === section).map(m => m.id);
+      const current = prev[section] ? prev[section] : base;
+      const arr = [...current];
+      const fi = arr.indexOf(fromId);
+      const ti = arr.indexOf(toId);
+      if (fi < 0 || ti < 0 || fi === ti) return prev;
+      arr.splice(fi, 1); arr.splice(ti, 0, fromId);
+      const next = { ...prev, [section]: arr };
+      if (user) saveOrder(user.id, next);
+      return next;
+    });
+  }, [user]);
+
   if (!user) return null;
 
   const effectiveRole =
@@ -73,8 +100,19 @@ export default function Sidebar({ currentPage, onNavigate, badges = {} }) {
     user.role === 'PM Team Lead' ? 'TL' :
     user.role === 'Product Manager' ? 'PM' :
     user.perfiq;
+
+  // Group visible menus by section, applying saved order within each section
   const visibleMenus = ALL_MENUS.filter(m => m.roles.includes(effectiveRole));
-  let lastSection = '';
+  const sections = [...new Map(visibleMenus.map(m => [m.section, true])).keys()];
+  const orderedMenus = sections.flatMap(section => {
+    const items = visibleMenus.filter(m => m.section === section);
+    const savedOrder = sectionOrders[section];
+    if (!savedOrder) return items;
+    const ordered = [];
+    savedOrder.forEach(id => { const f = items.find(m => m.id === id); if (f) ordered.push(f); });
+    items.forEach(m => { if (!ordered.find(o => o.id === m.id && o.section === m.section)) ordered.push(m); });
+    return ordered;
+  });
 
   return (
     <aside style={{
@@ -122,25 +160,48 @@ export default function Sidebar({ currentPage, onNavigate, badges = {} }) {
 
       {/* ── Navigation ───────────────────────────────────────────────── */}
       <nav style={{ flex: 1, padding: '12px 0' }}>
-        {visibleMenus.map(m => {
-          const section = m.section !== lastSection ? (lastSection = m.section, m.section) : null;
-          return (
-            <div key={m.id}>
-              {section && <div className="nav-section-label">{section}</div>}
-              <div
-                className={`nav-item${currentPage === m.id ? ' active' : ''}`}
-                onClick={() => onNavigate(m.id)}
-              >
-                <span style={{ fontSize: 16, width: 20, textAlign: 'center' }}>{m.icon}</span>
-                {m.label}
-                {badges[m.id] > 0 && (
-                  <span className="nav-badge">{badges[m.id]}</span>
-                )}
+        {(() => {
+          let lastSection = '';
+          return orderedMenus.map((m, idx) => {
+            const showSection = m.section !== lastSection ? (lastSection = m.section, m.section) : null;
+            const isDragOver  = dragState && dragState.section === m.section && dragState.overId === m.id;
+            const isDragging  = dragState && dragState.section === m.section && dragState.fromId === m.id;
+            return (
+              <div key={`${m.section}-${m.id}-${idx}`}>
+                {showSection && <div className="nav-section-label">{showSection}</div>}
+                <div
+                  className={`nav-item${currentPage === m.id ? ' active' : ''}`}
+                  draggable
+                  onDragStart={() => setDragState({ section: m.section, fromId: m.id, overId: null })}
+                  onDragOver={e => {
+                    if (dragState?.section !== m.section) return;
+                    e.preventDefault();
+                    setDragState(p => p ? { ...p, overId: m.id } : null);
+                  }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    if (dragState && dragState.section === m.section && dragState.fromId !== m.id) {
+                      reorder(m.section, dragState.fromId, m.id);
+                    }
+                    setDragState(null);
+                  }}
+                  onDragEnd={() => setDragState(null)}
+                  onClick={() => onNavigate(m.id)}
+                  style={{ opacity: isDragging ? 0.45 : 1, borderTop: isDragOver && !isDragging ? '2px solid rgba(255,255,255,.4)' : undefined }}
+                >
+                  <span style={{ fontSize: 16, width: 20, textAlign: 'center' }}>{m.icon}</span>
+                  {m.label}
+                  {badges[m.id] > 0 && (
+                    <span className="nav-badge">{badges[m.id]}</span>
+                  )}
+                  <span className="drag-handle" title="Drag to reorder" style={{ marginLeft: 'auto', opacity: 0, fontSize: 12, cursor: 'grab', color: 'rgba(255,255,255,.4)', paddingLeft: 4 }}>⠿</span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </nav>
+      <style>{`.nav-item:hover .drag-handle { opacity: 1 !important; }`}</style>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,.08)' }}>

@@ -150,6 +150,17 @@ export const updateSprintCapacity= (id, data) => api.patch(`/projects/sprint-cap
 export const getCapacitySummary  = (params) => api.get('/projects/capacity-summary/', { params });
 export const getUserSprintActivity = (userId, sprintId) => api.get(`/projects/user-sprint-activity/${userId}/${sprintId}/`);
 
+// Chat
+export const getChatRooms         = ()           => api.get('/projects/chat/rooms/');
+export const getOrCreateDirectRoom= (userId)     => api.post('/projects/chat/rooms/direct/', { user_id: userId });
+export const createGroupRoom      = (data)       => api.post('/projects/chat/rooms/group/', data);
+export const getChatRoomDetail    = (id)         => api.get(`/projects/chat/rooms/${id}/`);
+export const getChatMessages      = (id, since)  => api.get(`/projects/chat/rooms/${id}/messages/`, { params: since ? { since } : {} });
+export const sendChatMessage      = (id, formData) => api.post(`/projects/chat/rooms/${id}/messages/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const deleteChatMessage    = (msgId)      => api.delete(`/projects/chat/messages/${msgId}/`);
+export const markChatRoomRead     = (id)         => api.post(`/projects/chat/rooms/${id}/read/`, {});
+export const getChatUnreadCount   = ()           => api.get('/projects/chat/unread/');
+
 // Releases
 export const getReleases = (params) => api.get('/projects/releases/', { params });
 export const createRelease = (data) => api.post('/projects/releases/', data);

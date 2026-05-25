@@ -15,6 +15,7 @@ from .models import (
     Notification, PMWorkEntry, PMWorkEntryAttachment, PMWorkEntryComment,
     Meeting, ScrumAlert, Epic, Release, ReleaseItem, Team,
     UserLeave, UserSprintCapacity,
+    ChatRoom, ChatMessage, ChatReadReceipt,
 )
 from .utils import notify_mentions, notify_assignee_change
 from .serializers import (
@@ -25,6 +26,7 @@ from .serializers import (
     PMWorkEntrySerializer, PMWorkEntryAttachmentSerializer, PMWorkEntryCommentSerializer,
     MeetingSerializer, ScrumAlertSerializer, EpicSerializer, ReleaseSerializer, ReleaseItemSerializer,
     TeamSerializer, UserLeaveSerializer, UserSprintCapacitySerializer,
+    ChatRoomSerializer, ChatMessageSerializer,
 )
 
 
@@ -1867,3 +1869,131 @@ def user_sprint_activity(request, user_id, sprint_id):
         "standup_yesterday": StandupSerializer(std_yesterday).data if std_yesterday else None,
         "leaves":            UserLeaveSerializer(leaves, many=True).data,
     })
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def chat_rooms(request):
+    """List all rooms the current user is a member of, sorted by latest message."""
+    rooms = request.user.chat_rooms.prefetch_related('members', 'messages', 'read_receipts').order_by('-created_at')
+    # Sort by last message time
+    def last_msg_time(r):
+        msg = r.messages.last()
+        return msg.created_at if msg else r.created_at
+    rooms_sorted = sorted(rooms, key=last_msg_time, reverse=True)
+    return Response(ChatRoomSerializer(rooms_sorted, many=True, context={'request': request}).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def chat_get_or_create_direct(request):
+    """Get or create a direct (1:1) room between current user and target user."""
+    target_id = request.data.get('user_id')
+    if not target_id:
+        return Response({'error': 'user_id required'}, status=400)
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        target = User.objects.get(id=target_id)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+    # Find existing direct room with exactly these two members
+    existing = ChatRoom.objects.filter(room_type='direct', members=request.user).filter(members=target)
+    for room in existing:
+        if room.members.count() == 2:
+            return Response(ChatRoomSerializer(room, context={'request': request}).data)
+
+    # Create new
+    room = ChatRoom.objects.create(room_type='direct', created_by=request.user)
+    room.members.add(request.user, target)
+    return Response(ChatRoomSerializer(room, context={'request': request}).data, status=201)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def chat_create_group(request):
+    """Create a group chat room."""
+    name = request.data.get('name', '').strip()
+    member_ids = request.data.get('member_ids', [])
+    if not name:
+        return Response({'error': 'name required'}, status=400)
+    room = ChatRoom.objects.create(room_type='group', name=name, created_by=request.user)
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    members = User.objects.filter(id__in=member_ids)
+    room.members.add(request.user, *members)
+    return Response(ChatRoomSerializer(room, context={'request': request}).data, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def chat_room_detail(request, pk):
+    room = get_object_or_404(ChatRoom, pk=pk, members=request.user)
+    return Response(ChatRoomSerializer(room, context={'request': request}).data)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def chat_messages(request, pk):
+    room = get_object_or_404(ChatRoom, pk=pk, members=request.user)
+
+    if request.method == 'GET':
+        since = request.query_params.get('since')
+        qs = room.messages.select_related('sender').all()
+        if since:
+            try:
+                from datetime import datetime
+                since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+                qs = qs.filter(created_at__gt=since_dt)
+            except Exception:
+                pass
+        return Response(ChatMessageSerializer(qs, many=True, context={'request': request}).data)
+
+    # POST — send a message
+    text = request.data.get('text', '').strip()
+    file = request.FILES.get('attachment')
+    if not text and not file:
+        return Response({'error': 'text or attachment required'}, status=400)
+
+    msg = ChatMessage(room=room, sender=request.user, text=text)
+    if file:
+        msg.attachment = file
+        msg.attachment_name = file.name
+        msg.attachment_size = file.size
+    msg.save()
+    return Response(ChatMessageSerializer(msg, context={'request': request}).data, status=201)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def chat_message_delete(request, pk):
+    msg = get_object_or_404(ChatMessage, pk=pk, sender=request.user)
+    msg.delete()
+    return Response(status=204)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def chat_mark_read(request, pk):
+    room = get_object_or_404(ChatRoom, pk=pk, members=request.user)
+    ChatReadReceipt.objects.update_or_create(room=room, user=request.user, defaults={})
+    return Response({'ok': True})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def chat_unread_count(request):
+    rooms = request.user.chat_rooms.prefetch_related('messages', 'read_receipts').all()
+    total = 0
+    for room in rooms:
+        receipt = room.read_receipts.filter(user=request.user).first()
+        if receipt:
+            total += room.messages.exclude(sender=request.user).filter(created_at__gt=receipt.last_read_at).count()
+        else:
+            total += room.messages.exclude(sender=request.user).count()
+    return Response({'total_unread': total})
