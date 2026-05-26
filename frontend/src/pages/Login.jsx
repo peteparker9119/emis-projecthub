@@ -1,6 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const MANAGER_OPTIONS = [
+  {
+    name: 'Manoj Kumar',
+    display: 'Manoj Kumar R',
+    subtitle: 'Senior Project Manager · Team 3',
+    gradient: 'linear-gradient(135deg,#6d28d9,#7c3aed)',
+    glow: 'rgba(124,58,237,.3)',
+  },
+  {
+    name: 'Mohana krishnan',
+    display: 'Mohana Krishnan',
+    subtitle: 'Project Manager · Team 4',
+    gradient: 'linear-gradient(135deg,#0f766e,#0d9488)',
+    glow: 'rgba(13,148,136,.3)',
+  },
+  {
+    name: 'Vaseekaran',
+    display: 'Vaseekaran',
+    subtitle: 'Architect Manager · Team 6',
+    gradient: 'linear-gradient(135deg,#9d174d,#db2777)',
+    glow: 'rgba(219,39,119,.3)',
+  },
+];
+
 const ROLES = [
   {
     role: 'CTO',
@@ -20,7 +44,8 @@ const ROLES = [
     desc: 'Create sprints, manage tasks, view reports and team members.',
     gradient: 'linear-gradient(135deg,#0d9488,#0891b2)',
     glow: 'rgba(13,148,136,.35)',
-    label: 'Login as Manager',
+    label: 'Select Manager',
+    hasSubOptions: true,
   },
   {
     role: 'EMPLOYEE',
@@ -75,18 +100,29 @@ function useClock() {
 
 export default function Login() {
   const { loginAs } = useAuth();
-  const [loading, setLoading] = useState(null);
-  const [error, setError] = useState('');
+  const [loading,      setLoading]      = useState(null);
+  const [error,        setError]        = useState('');
+  const [expandedRole, setExpandedRole] = useState(null); // 'MANAGER' when expanded
   const now = useClock();
 
-  const handleLogin = async (role) => {
-    setLoading(role);
+  const handleLogin = async (role, name) => {
+    const key = name ? `${role}:${name}` : role;
+    setLoading(key);
     setError('');
     try {
-      await loginAs(role);
+      await loginAs(role, name);
     } catch {
       setError('Login failed. Please ensure the backend is running.');
       setLoading(null);
+    }
+  };
+
+  const handleCardClick = (r) => {
+    if (loading) return;
+    if (r.hasSubOptions) {
+      setExpandedRole(prev => prev === r.role ? null : r.role);
+    } else {
+      handleLogin(r.role, r.name);
     }
   };
 
@@ -105,8 +141,6 @@ export default function Login() {
 
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div style={{ textAlign: 'center', marginBottom: 40, color: 'white' }}>
-
-          {/* Brand */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
             <div style={{
               width: 56, height: 56, borderRadius: 16, fontWeight: 800, fontSize: 20,
@@ -147,44 +181,107 @@ export default function Login() {
         {/* ── Role Cards ───────────────────────────────────────────────────── */}
         <div className="login-role-grid" style={{ marginBottom: 24 }}>
           {ROLES.map(r => {
-            const isLoading = loading === r.role;
+            const key       = r.role;
+            const isLoading = loading === key;
             const isDimmed  = !!loading && !isLoading;
+            const isExpanded = expandedRole === r.role;
+
             return (
-              <button
-                key={r.role}
-                onClick={() => handleLogin(r.role)}
-                disabled={!!loading}
-                className={`login-role-card${isLoading ? ' loading' : ''}`}
-                style={{
-                  opacity: isDimmed ? .55 : 1,
-                  transform: isDimmed ? 'scale(.97)' : undefined,
-                  cursor: loading ? (isLoading ? 'wait' : 'not-allowed') : 'pointer',
-                  outline: 'none',
-                }}
-              >
-                {/* Icon */}
-                <div className="login-role-icon" style={{ background: r.gradient, boxShadow: `0 6px 20px ${r.glow}` }}>
-                  {isLoading
-                    ? <div className="login-role-spinner" />
-                    : <span style={{ fontSize: 26 }}>{r.icon}</span>
-                  }
-                </div>
+              <div key={key} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => handleCardClick(r)}
+                  disabled={!!loading}
+                  className={`login-role-card${isLoading ? ' loading' : ''}${isExpanded ? ' expanded' : ''}`}
+                  style={{
+                    opacity: isDimmed ? .55 : 1,
+                    transform: isDimmed ? 'scale(.97)' : undefined,
+                    cursor: loading ? (isLoading ? 'wait' : 'not-allowed') : 'pointer',
+                    outline: 'none',
+                    width: '100%',
+                    border: isExpanded ? '2px solid rgba(13,148,136,.6)' : undefined,
+                    boxShadow: isExpanded ? '0 0 0 3px rgba(13,148,136,.2)' : undefined,
+                  }}
+                >
+                  {/* Icon */}
+                  <div className="login-role-icon" style={{ background: r.gradient, boxShadow: `0 6px 20px ${r.glow}` }}>
+                    {isLoading
+                      ? <div className="login-role-spinner" />
+                      : <span style={{ fontSize: 26 }}>{r.icon}</span>
+                    }
+                  </div>
 
-                {/* Text */}
-                <div className="login-role-name">{r.title}</div>
-                <div style={{ fontSize: 10.5, color: 'var(--text3)', marginBottom: 8, fontWeight: 500, position: 'relative', zIndex: 1 }}>{r.subtitle}</div>
-                <div className="login-role-desc">{r.desc}</div>
+                  {/* Text */}
+                  <div className="login-role-name">{r.title}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text3)', marginBottom: 8, fontWeight: 500, position: 'relative', zIndex: 1 }}>{r.subtitle}</div>
+                  <div className="login-role-desc">{r.desc}</div>
 
-                {/* CTA pill */}
-                <div style={{
-                  display: 'inline-block', marginTop: 14, padding: '6px 18px', borderRadius: 20,
-                  background: r.gradient, color: 'white', fontSize: 12, fontWeight: 700,
-                  boxShadow: `0 3px 12px ${r.glow}`, position: 'relative', zIndex: 1,
-                  transition: 'box-shadow .2s',
-                }}>
-                  {isLoading ? '⏳ Signing in…' : r.label}
-                </div>
-              </button>
+                  {/* CTA pill */}
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    marginTop: 14, padding: '6px 18px', borderRadius: 20,
+                    background: r.gradient, color: 'white', fontSize: 12, fontWeight: 700,
+                    boxShadow: `0 3px 12px ${r.glow}`, position: 'relative', zIndex: 1,
+                    transition: 'box-shadow .2s',
+                  }}>
+                    {isLoading ? '⏳ Signing in…' : r.label}
+                    {r.hasSubOptions && !isLoading && (
+                      <span style={{ fontSize: 10, opacity: .8, transition: 'transform .2s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'none' }}>▼</span>
+                    )}
+                  </div>
+                </button>
+
+                {/* ── Manager sub-options panel ─────────────────────────── */}
+                {r.hasSubOptions && isExpanded && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, zIndex: 50,
+                    background: 'white', borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,.22)',
+                    border: '1.5px solid rgba(13,148,136,.25)', overflow: 'hidden',
+                    animation: 'fadeIn .15s ease',
+                  }}>
+                    <div style={{ padding: '10px 14px 6px', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.6px', borderBottom: '1px solid #f1f5f9' }}>
+                      Choose a manager
+                    </div>
+                    {MANAGER_OPTIONS.map(opt => {
+                      const optKey = `MANAGER:${opt.name}`;
+                      const optLoading = loading === optKey;
+                      return (
+                        <button
+                          key={opt.name}
+                          onClick={e => { e.stopPropagation(); handleLogin('MANAGER', opt.name); }}
+                          disabled={!!loading}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            width: '100%', padding: '12px 14px', border: 'none',
+                            background: optLoading ? '#f0fdf4' : 'white', cursor: 'pointer',
+                            borderBottom: '1px solid #f8fafc', transition: 'background .15s',
+                            fontFamily: 'inherit',
+                          }}
+                          onMouseEnter={e => { if (!optLoading) e.currentTarget.style.background = '#f8fafc'; }}
+                          onMouseLeave={e => { if (!optLoading) e.currentTarget.style.background = 'white'; }}
+                        >
+                          {/* Avatar */}
+                          <div style={{
+                            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                            background: opt.gradient, display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 800,
+                            boxShadow: `0 3px 10px ${opt.glow}`,
+                          }}>
+                            {opt.display.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'left' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{opt.display}</div>
+                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{opt.subtitle}</div>
+                          </div>
+                          {optLoading
+                            ? <div className="login-role-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                            : <span style={{ fontSize: 12, color: '#94a3b8' }}>→</span>
+                          }
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

@@ -92,12 +92,14 @@ function EpicFormModal({ epic, projects, onClose, onSaved }) {
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Title *</label>
             <input value={form.title} onChange={F('title')} placeholder="Epic title…" autoFocus
               style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+            <span className="field-hint">The high-level goal or feature this epic covers. E.g. "User Authentication Module".</span>
           </div>
 
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Description</label>
             <textarea value={form.description} onChange={F('description')} rows={3} placeholder="Epic description…"
               style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+            <span className="field-hint">Describe the scope, context, and success criteria for this epic.</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -106,12 +108,14 @@ function EpicFormModal({ epic, projects, onClose, onSaved }) {
               <select value={form.priority} onChange={F('priority')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
                 {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
+              <span className="field-hint">How urgently this epic should be addressed relative to others.</span>
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Status</label>
               <select value={form.status} onChange={F('status')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
                 {['Planning', 'In Progress', 'Done', 'On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+              <span className="field-hint">Move through Planning → In Progress → Done as work progresses.</span>
             </div>
           </div>
 
@@ -121,16 +125,19 @@ function EpicFormModal({ epic, projects, onClose, onSaved }) {
               <option value="">— No project —</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
+            <span className="field-hint">Link this epic to a project for better organisation (optional).</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Start Date</label>
               <input type="date" value={form.start_date} onChange={F('start_date')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <span className="field-hint">When work on this epic is expected to begin.</span>
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>End Date</label>
               <input type="date" value={form.end_date} onChange={F('end_date')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <span className="field-hint">Target date to complete all items under this epic.</span>
             </div>
           </div>
         </div>

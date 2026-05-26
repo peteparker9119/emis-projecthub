@@ -200,22 +200,26 @@ function AddEntryForm({ date, userId, onCreated, onCancel }) {
         <div>
           <label style={lStyle}>Title *</label>
           <input value={form.title} onChange={F('title')} placeholder="What did you work on?" style={iStyle} autoFocus />
+          <span className="field-hint">A brief summary of the activity. E.g. "Reviewed Sprint 13 backlog".</span>
         </div>
         <div>
           <label style={lStyle}>Category *</label>
           <select value={form.category} onChange={F('category')} style={iStyle}>
             {Object.entries(CATS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
+          <span className="field-hint">Type of work performed. Used to report time by category.</span>
         </div>
         <div>
           <label style={lStyle}>Hours *</label>
           <input value={form.hours} onChange={F('hours')} type="number" min="0.25" step="0.25" placeholder="0.5" style={iStyle} />
+          <span className="field-hint">Time spent. Use 0.25 increments (e.g. 0.5, 1.0, 2.5).</span>
         </div>
       </div>
 
       <div style={{ marginBottom: 14 }}>
         <label style={lStyle}>Description / Notes</label>
         <textarea value={form.description} onChange={F('description')} rows={3} placeholder="Add details, context, outcomes…" style={{ ...iStyle, resize: 'vertical' }} />
+        <span className="field-hint">Optional — add context, outcomes, links, or decisions made during this activity.</span>
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>

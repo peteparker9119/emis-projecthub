@@ -337,6 +337,7 @@ export default function AdminControls() {
               <input value={newTagName} onChange={e => setNewTagName(e.target.value)} placeholder="e.g. High Impact"
                 onKeyDown={e => e.key === 'Enter' && addTag()}
                 style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+              <span className="field-hint">Short label used to categorise items. Press Enter or click + Add Tag.</span>
             </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Color</label>
@@ -360,14 +361,15 @@ export default function AdminControls() {
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Editing: {editingTpl.name}</div>
               {[
-                { key: 'subject', label: 'Subject', rows: 1 },
-                { key: 'body', label: 'Body', rows: 8 },
+                { key: 'subject', label: 'Subject', rows: 1, hint: 'The email subject line. Use {{variable}} placeholders for dynamic content.' },
+                { key: 'body', label: 'Body', rows: 8, hint: 'Full email body. Use {{name}}, {{item_id}}, {{title}}, {{priority}}, {{due_date}}, {{link}}, {{date}}, {{days}}, {{email}}, {{role}} as placeholders.' },
               ].map(f => (
                 <div key={f.key} style={{ marginBottom: 12 }}>
                   <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{f.label}</label>
                   <textarea value={editingTpl[f.key]} rows={f.rows}
                     onChange={e => setEditingTpl(p => ({ ...p, [f.key]: e.target.value }))}
                     style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontFamily: 'DM Mono, monospace', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+                  <span className="field-hint">{f.hint}</span>
                 </div>
               ))}
               <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12 }}>

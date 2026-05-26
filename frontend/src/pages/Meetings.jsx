@@ -177,6 +177,7 @@ function MeetingFormModal({ initial, users, onClose, onSaved }) {
           <div>
             <label style={lSt}>Title *</label>
             <input value={form.title} onChange={F('title')} placeholder="Meeting title" style={iSt} autoFocus />
+            <span className="field-hint">A clear subject for the meeting. E.g. "Sprint 14 Planning Session".</span>
           </div>
 
           {/* Type + Color row */}
@@ -188,6 +189,7 @@ function MeetingFormModal({ initial, users, onClose, onSaved }) {
                   <option key={k} value={k}>{v.icon} {v.label}</option>
                 ))}
               </select>
+              <span className="field-hint">Category of meeting. Auto-assigns a matching color.</span>
             </div>
             <div>
               <label style={lSt}>Color</label>
@@ -197,6 +199,7 @@ function MeetingFormModal({ initial, users, onClose, onSaved }) {
                     style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: form.color === c ? '3px solid #1e293b' : '2px solid transparent', cursor: 'pointer', padding: 0 }} />
                 ))}
               </div>
+              <span className="field-hint">Visual color for this meeting block on the calendar.</span>
             </div>
           </div>
 
@@ -205,10 +208,12 @@ function MeetingFormModal({ initial, users, onClose, onSaved }) {
             <div>
               <label style={lSt}>Start *</label>
               <input type="datetime-local" value={form.start_datetime} onChange={F('start_datetime')} style={iSt} />
+              <span className="field-hint">Date and time the meeting begins.</span>
             </div>
             <div>
               <label style={lSt}>End *</label>
               <input type="datetime-local" value={form.end_datetime} onChange={F('end_datetime')} style={iSt} />
+              <span className="field-hint">Must be after the start time.</span>
             </div>
           </div>
 
@@ -216,17 +221,20 @@ function MeetingFormModal({ initial, users, onClose, onSaved }) {
           <div>
             <label style={lSt}>Location / Link</label>
             <input value={form.location} onChange={F('location')} placeholder="Room, Google Meet link, etc." style={iSt} />
+            <span className="field-hint">Physical room name or video call link. E.g. "Conference Room A" or a Google Meet URL.</span>
           </div>
 
           {/* Description */}
           <div>
             <label style={lSt}>Description / Agenda</label>
             <textarea value={form.description} onChange={F('description')} rows={3} placeholder="Meeting agenda or notes…" style={{ ...iSt, resize: 'vertical' }} />
+            <span className="field-hint">List agenda items, objectives, or prep notes for attendees.</span>
           </div>
 
           {/* Attendees */}
           <div>
             <label style={lSt}>Attendees</label>
+            <span className="field-hint">Search and add individual members, or use quick-add buttons to invite an entire group.</span>
 
             {/* Role group quick-add buttons */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>

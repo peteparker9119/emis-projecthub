@@ -19,9 +19,9 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Password-free login by role key
-  const loginAs = async (role) => {
-    const res = await roleLogin(role);
+  // Password-free login by role key (optionally filter by name for multiple users of same role)
+  const loginAs = async (role, name) => {
+    const res = await roleLogin(role, name);
     localStorage.setItem('access_token', res.data.access);
     localStorage.setItem('refresh_token', res.data.refresh);
     setUser(res.data.user);

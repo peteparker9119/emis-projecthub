@@ -2,9 +2,10 @@ import api from './client';
 
 // Auth
 export const login = (email, password) => api.post("/users/login/", { email, password });
-export const roleLogin = (role) => api.post("/users/role-login/", { role });
+export const roleLogin = (role, name) => api.post("/users/role-login/", name ? { role, name } : { role });
 export const getMe = () => api.get('/users/me/');
 export const getUsers = () => api.get('/users/');
+export const assignUserManager = (userId, managerId) => api.patch(`/users/${userId}/assign/`, { reports_to: managerId });
 
 // Dashboard
 export const getDashboard = () => api.get('/projects/dashboard/');

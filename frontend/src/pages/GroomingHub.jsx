@@ -643,7 +643,7 @@ function PullSprintModal({ selected, sprints, onClose, onPulled }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function GroomingHub() {
+export default function GroomingHub({ readOnly = false }) {
   const { user } = useAuth();
 
   const isTeamLead       = user?.role === 'PM Team Lead';
@@ -796,7 +796,7 @@ export default function GroomingHub() {
           <option value="">All Grooming</option>
           {Object.entries(GROOMING_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        {!isScrumMaster && (
+        {!isScrumMaster && !readOnly && (
           <button
             onClick={() => setShowCreate(c => !c)}
             style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>

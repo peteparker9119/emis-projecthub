@@ -32,6 +32,7 @@ import Releases from './pages/Releases';
 import TeamDashboard from './pages/TeamDashboard';
 import CapacityTracker from './pages/CapacityTracker';
 import ChatWidget from './components/ChatWidget';
+import BacklogPage from './pages/BacklogPage';
 
 const ALERT_ICONS = { standup: '🏆', breach: '🚨', urgent: '🔴', info: '📢' };
 const ALERT_COLORS = { standup: '#0d9488', breach: '#dc2626', urgent: '#7c3aed', info: '#1a56db' };
@@ -104,6 +105,7 @@ function AppShell() {
   const { user, loading } = useAuth();
   const [page, setPage] = useState('dashboard');
   const [taskTab, setTaskTab] = useState('list');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Loading spinner
   if (loading) return (
@@ -122,7 +124,7 @@ function AppShell() {
       case 'projects':      return <Projects />;
       case 'sprints':       return <Sprints />;
       case 'tasks':         return <ItemPage type="tasks" tab={taskTab} onTabChange={setTaskTab} />;
-      case 'requirements':  return <Requirements />;
+      case 'requirements':  return <BacklogPage />;
       case 'bugs':          return <ItemPage type="bugs" />;
       case 'ideas':         return <Ideas />;
       case 'mytasks':       return <MyTasks />;
@@ -133,7 +135,7 @@ function AppShell() {
       case 'letters':       return <Letters />;
       case 'menubuilder':   return <MenuBuilder />;
       case 'admin':         return <AdminControls />;
-      case 'groomhub':      return <GroomingHub />;
+      case 'groomhub':      return <BacklogPage />;
       case 'scrummaster':   return <ScrumMaster />;
       case 'pmdailylog':    return <PMDailyLog />;
       case 'pmactivity':    return <PMActivity />;
@@ -152,8 +154,8 @@ function AppShell() {
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <ScrumAlertBanner />
       <ChatWidget />
-      <Sidebar currentPage={page} onNavigate={setPage} />
-      <main style={{ marginLeft: 'var(--sidebar-w)', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Sidebar currentPage={page} onNavigate={setPage} badges={{}} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
+      <main style={{ marginLeft: sidebarCollapsed ? 64 : 240, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', transition: 'margin-left .2s ease' }}>
         <Topbar currentPage={page} onNavigate={setPage} />
         {renderPage()}
       </main>

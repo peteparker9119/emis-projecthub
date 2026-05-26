@@ -90,9 +90,9 @@ function StandupModal({ member, date, sprintId, onClose, onSaved }) {
           <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text2)' }}>×</button>
         </div>
         {[
-          { label: "What did you do yesterday?", key: 'yesterday', placeholder: 'e.g. Completed API integration' },
-          { label: "What will you do today? *", key: 'today', placeholder: 'e.g. Dashboard charts + bug fixes' },
-          { label: "Any blockers?", key: 'blockers', placeholder: 'e.g. Waiting for design approval' },
+          { label: "What did you do yesterday?", key: 'yesterday', placeholder: 'e.g. Completed API integration', hint: 'Summarise completed work from the previous working day.' },
+          { label: "What will you do today? *", key: 'today', placeholder: 'e.g. Dashboard charts + bug fixes', hint: 'Your planned tasks for today. This field is required.' },
+          { label: "Any blockers?", key: 'blockers', placeholder: 'e.g. Waiting for design approval', hint: 'Anything preventing your progress? Leave blank if none.' },
         ].map(f => (
           <div key={f.key} style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{f.label}</label>
@@ -100,6 +100,7 @@ function StandupModal({ member, date, sprintId, onClose, onSaved }) {
               ? <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '10px 12px', fontSize: 13, minHeight: 38 }}>{form[f.key] || '—'}</div>
               : <textarea value={form[f.key]} onChange={F(f.key)} placeholder={f.placeholder} rows={2} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
             }
+            {!readOnly && <span className="field-hint">{f.hint}</span>}
           </div>
         ))}
         {err && <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
@@ -156,11 +157,12 @@ function BulkPullModal({ selected, reqs, sprints, onClose, onPulled }) {
         </div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>Target Sprint *</label>
-        <select value={sprintId} onChange={e => setSprintId(e.target.value)} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', background: 'white', marginBottom: 16 }}>
+        <select value={sprintId} onChange={e => setSprintId(e.target.value)} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', background: 'white', marginBottom: 4 }}>
           <option value="">— Choose sprint —</option>
           {activeSprints.map(s => <option key={s.id} value={s.id}>{s.id} · {s.name} ({s.status})</option>)}
           {activeSprints.length === 0 && <option disabled>No active/planning sprints</option>}
         </select>
+        <span className="field-hint" style={{ marginBottom: 12, display: 'block' }}>Select an Active or Planning sprint to pull these items into.</span>
 
         {err && <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 10 }}>{err}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -215,13 +217,15 @@ function NotifyModal({ item, users, onClose, onSent }) {
         </div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>Notify *</label>
-        <select value={recipientId} onChange={e => setRecipientId(e.target.value)} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', background: 'white', marginBottom: 14 }}>
+        <select value={recipientId} onChange={e => setRecipientId(e.target.value)} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', background: 'white', marginBottom: 4 }}>
           <option value="">— Select recipient —</option>
           {users.map(u => <option key={u.id} value={u.id}>{u.name}{item.assignee_id == u.id ? ' (assignee)' : ''}</option>)}
         </select>
+        <span className="field-hint" style={{ marginBottom: 12, display: 'block' }}>Choose who receives this breach alert. The assignee is pre-selected if available.</span>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>Message *</label>
-        <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 14 }} />
+        <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 4 }} />
+        <span className="field-hint" style={{ marginBottom: 10, display: 'block' }}>The notification message. Pre-filled with breach details — edit as needed before sending.</span>
 
         {err && <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -617,7 +621,7 @@ function SMActionStrip({
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 10, alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 10, alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Alert Type</div>
               <select value={alertForm.alert_type} onChange={e => setAlertForm(p => ({ ...p, alert_type: e.target.value }))}
@@ -627,6 +631,7 @@ function SMActionStrip({
                 <option value="urgent">🔴 Urgent</option>
                 <option value="info">📢 General Info</option>
               </select>
+              <span className="field-hint">Sets the icon and urgency of the push notification sent to all team members.</span>
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 5 }}>Message</div>
@@ -634,6 +639,7 @@ function SMActionStrip({
                 onKeyDown={e => e.key === 'Enter' && onPushAlert()}
                 placeholder="e.g. Daily standup starting now — join the call!"
                 style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <span className="field-hint">The message broadcast to all team members. Keep it short and actionable.</span>
             </div>
             <button onClick={onPushAlert} disabled={alertSending || !alertForm.message.trim()}
               style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: alertSending || !alertForm.message.trim() ? 'var(--surface2)' : 'linear-gradient(135deg,#065f46,#0d9488)', color: alertSending || !alertForm.message.trim() ? 'var(--text3)' : 'white', fontWeight: 700, fontSize: 13, cursor: !alertForm.message.trim() ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>

@@ -54,10 +54,76 @@ const DEPT_COLORS = {
   DGE: '#dc2626', DPS: '#16a34a', Other: '#64748b', 'Tech Initiatives': '#0e7490',
 };
 
+function DeptModal({ d, color, qNotes, setQNotes, onClose }) {
+  if (!d) return null;
+  const relPct = d.total > 0 ? Math.round((d.released / d.total) * 100) : 0;
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 440, boxShadow: '0 24px 80px rgba(0,0,0,.25)', border: `2px solid ${color}33`, overflow: 'hidden', animation: 'deptModalIn .2s ease' }}
+      >
+        {/* Modal header */}
+        <div style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)`, padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: 'white' }}>{d.dept}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.8)', marginTop: 2 }}>Department Detail View</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: 'white', width: 32, height: 32, borderRadius: 8, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{ padding: '20px 22px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+            {[
+              ['📦', 'Total Requirements', d.total, '#1e293b'],
+              ['🚀', 'Released',           d.released,     '#16a34a'],
+              ['⏳', 'Pending',            d.not_released, '#b45309'],
+              ['👤', 'By PM',              d.by_pm,        color],
+              ['❓', 'Open Backlog',       d.raise_question, d.raise_question > 0 ? '#dc2626' : '#64748b'],
+            ].map(([icon, label, val, col]) => (
+              <div key={label} style={{ background: `${col}0d`, border: `1px solid ${col}22`, borderRadius: 12, padding: '12px 14px' }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: col }}>{val}</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 1 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>
+              <span>Released progress</span>
+              <strong style={{ color }}>{relPct}%</strong>
+            </div>
+            <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${relPct}%`, background: `linear-gradient(90deg, ${color}, ${color}cc)`, borderRadius: 4, transition: 'width .4s' }} />
+            </div>
+          </div>
+
+          {/* Raise question */}
+          {d.raise_question > 0 && (
+            <button
+              onClick={() => setQNotes(p => ({ ...p, [d.dept]: true }))}
+              style={{ width: '100%', padding: '10px 0', borderRadius: 10, border: `1.5px solid ${color}44`, background: qNotes[d.dept] ? `${color}18` : 'white', color, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all .15s' }}
+            >
+              {qNotes[d.dept] ? '✓ Question Flagged' : '🚩 Raise Question'}
+            </button>
+          )}
+        </div>
+      </div>
+      <style>{`@keyframes deptModalIn { from { transform: scale(.92) translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }`}</style>
+    </div>
+  );
+}
+
 function CTOMiniDashboard({ user }) {
   const [ctoData, setCtoData] = useState(null);
-  const [qNotes, setQNotes] = useState({}); // { dept: noteSent }
-  const [expanding, setExpanding] = useState(null);
+  const [qNotes, setQNotes] = useState({});
+  const [modalDept, setModalDept] = useState(null);
 
   useEffect(() => {
     getCTOMiniDashboard().then(r => setCtoData(r.data)).catch(() => {});
@@ -70,90 +136,75 @@ function CTOMiniDashboard({ user }) {
   );
 
   const { departments = [], total_requirements, released_count, project_count } = ctoData;
+  const modalDeptData = departments.find(d => d.dept === modalDept) || null;
+  const modalColor = modalDeptData ? (DEPT_COLORS[modalDeptData.dept] || '#64748b') : '#64748b';
 
   return (
-    <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid var(--accent)', marginBottom: 22, overflow: 'hidden', boxShadow: '0 2px 16px rgba(26,86,219,.07)' }}>
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--teal, #0d9488))', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>📊</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'white' }}>Department Overview</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.75)', marginTop: 1 }}>CTO Command View</div>
+    <>
+      <DeptModal d={modalDeptData} color={modalColor} qNotes={qNotes} setQNotes={setQNotes} onClose={() => setModalDept(null)} />
+
+      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid var(--accent)', marginBottom: 22, overflow: 'hidden', boxShadow: '0 2px 16px rgba(26,86,219,.07)' }}>
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg, var(--accent), var(--teal, #0d9488))', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>📊</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'white' }}>Department Overview</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.75)', marginTop: 1 }}>CTO Command View</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 16 }}>
+            {[
+              ['📦', total_requirements, 'Total Reqs'],
+              ['🚀', released_count, 'Released'],
+              ['🗂️', project_count, 'Projects'],
+            ].map(([icon, val, label]) => (
+              <div key={label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'white' }}>{icon} {val}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)' }}>{label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          {[
-            ['📦', total_requirements, 'Total Reqs'],
-            ['🚀', released_count, 'Released'],
-            ['🗂️', project_count, 'Projects'],
-          ].map(([icon, val, label]) => (
-            <div key={label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'white' }}>{icon} {val}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)' }}>{label}</div>
-            </div>
-          ))}
+
+        {/* Department cards */}
+        <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {departments.map(d => {
+            const color = DEPT_COLORS[d.dept] || '#64748b';
+            const relPct = d.total > 0 ? Math.round((d.released / d.total) * 100) : 0;
+            return (
+              <div key={d.dept}
+                onClick={() => setModalDept(d.dept)}
+                style={{ borderRadius: 12, border: `1.5px solid ${color}22`, background: `${color}08`, overflow: 'hidden', cursor: 'pointer', transition: 'all .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${color}14`; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${color}08`; e.currentTarget.style.transform = ''; }}>
+                {/* Dept color bar */}
+                <div style={{ height: 4, background: color }} />
+                <div style={{ padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color }}>{d.dept}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: `${color}22`, color, padding: '1px 8px', borderRadius: 10 }}>{d.total}</span>
+                  </div>
+
+                  {/* Progress bar: released */}
+                  <div style={{ height: 5, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                    <div style={{ height: '100%', width: `${relPct}%`, background: color, borderRadius: 3, transition: 'width .4s' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 10 }}>
+                    <span style={{ color: '#16a34a', fontWeight: 700 }}>✅ {d.released} released</span>
+                    <span style={{ color: '#b45309', fontWeight: 700 }}>⏳ {d.not_released} pending</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {departments.length === 0 && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 13 }}>No department data available</div>
+          )}
         </div>
       </div>
-
-      {/* Department cards */}
-      <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-        {departments.map(d => {
-          const color = DEPT_COLORS[d.dept] || '#64748b';
-          const relPct = d.total > 0 ? Math.round((d.released / d.total) * 100) : 0;
-          const isExpanded = expanding === d.dept;
-          return (
-            <div key={d.dept}
-              onClick={() => setExpanding(isExpanded ? null : d.dept)}
-              style={{ borderRadius: 12, border: `1.5px solid ${color}22`, background: `${color}08`, overflow: 'hidden', cursor: 'pointer', transition: 'all .15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = `${color}14`; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = `${color}08`; e.currentTarget.style.transform = ''; }}>
-              {/* Dept color bar */}
-              <div style={{ height: 4, background: color }} />
-              <div style={{ padding: '10px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color }}>{d.dept}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, background: `${color}22`, color, padding: '1px 8px', borderRadius: 10 }}>{d.total}</span>
-                </div>
-
-                {/* Progress bar: released */}
-                <div style={{ height: 5, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
-                  <div style={{ height: '100%', width: `${relPct}%`, background: color, borderRadius: 3, transition: 'width .4s' }} />
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 10 }}>
-                  <span style={{ color: '#16a34a', fontWeight: 700 }}>✅ {d.released} released</span>
-                  <span style={{ color: '#b45309', fontWeight: 700 }}>⏳ {d.not_released} pending</span>
-                </div>
-
-                {isExpanded && (
-                  <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${color}22`, display: 'flex', flexDirection: 'column', gap: 5, fontSize: 11 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text2)' }}>👤 By PM</span>
-                      <strong>{d.by_pm}</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text2)' }}>❓ Open backlog</span>
-                      <strong style={{ color: d.raise_question > 0 ? '#dc2626' : 'var(--text)' }}>{d.raise_question}</strong>
-                    </div>
-                    {d.raise_question > 0 && (
-                      <button
-                        onClick={e => { e.stopPropagation(); setQNotes(p => ({ ...p, [d.dept]: true })); }}
-                        style={{ marginTop: 4, padding: '5px 0', borderRadius: 7, border: 'none', background: `${color}22`, color, fontSize: 11, fontWeight: 700, cursor: 'pointer', width: '100%' }}>
-                        {qNotes[d.dept] ? '✓ Flagged' : '🚩 Raise Question'}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {departments.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 13 }}>No department data available</div>
-        )}
-      </div>
-    </div>
+    </>
   );
 }
 

@@ -150,6 +150,7 @@ export default function Letters() {
               <option>Notice</option>
               <option>Memo</option>
             </select>
+            <span className="field-hint">Approval — for sign-off requests; Circular — broadcast to all; Notice — official announcements; Memo — internal notes.</span>
           </div>
           <div className="form-group">
             <label>Priority</label>
@@ -158,11 +159,13 @@ export default function Letters() {
               <option>High</option>
               <option>Urgent</option>
             </select>
+            <span className="field-hint">Urgent letters are flagged prominently for immediate attention.</span>
           </div>
         </div>
         <div className="form-group">
           <label>Subject</label>
           <input className="form-control" placeholder="Letter subject…" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
+          <span className="field-hint">A clear, concise title for this letter.</span>
         </div>
         <div className="form-row">
           <div className="form-group">
@@ -171,15 +174,18 @@ export default function Letters() {
               <option>All Teams</option>
               {users.map(u => <option key={u.id}>{u.name}</option>)}
             </select>
+            <span className="field-hint">Select a specific recipient or "All Teams" to broadcast to everyone.</span>
           </div>
           <div className="form-group">
             <label>Reference No.</label>
             <input className="form-control" value={form.ref} onChange={e => setForm(f => ({ ...f, ref: e.target.value }))} />
+            <span className="field-hint">Optional internal reference number for tracking. E.g. "LTR-2026-045".</span>
           </div>
         </div>
         <div className="form-group">
           <label>Content</label>
           <textarea className="form-control" rows={5} placeholder="Letter body…" value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} />
+          <span className="field-hint">Write the full body of the letter. Use formal language for Approvals and Notices.</span>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button className="btn btn-outline" onClick={() => submit('Draft')}>💾 Save Draft</button>

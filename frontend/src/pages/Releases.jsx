@@ -76,11 +76,13 @@ function NewReleaseModal({ sprints, onClose, onSaved }) {
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Release Name *</label>
               <input value={form.name} onChange={F('name')} placeholder="e.g. Q2 Feature Release" autoFocus
                 style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              <span className="field-hint">A descriptive name for this release. E.g. "Q2 Feature Release".</span>
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Version</label>
               <input value={form.version} onChange={F('version')} placeholder="e.g. v2.4.0"
                 style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              <span className="field-hint">Semantic version number, e.g. "v2.4.0".</span>
             </div>
           </div>
 
@@ -90,17 +92,20 @@ function NewReleaseModal({ sprints, onClose, onSaved }) {
               <option value="">— No sprint —</option>
               {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+            <span className="field-hint">Associate this release with a specific sprint to track scope.</span>
           </div>
 
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Description</label>
             <textarea value={form.description} onChange={F('description')} rows={3} placeholder="What's included in this release…"
               style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+            <span className="field-hint">Summarise the features, fixes, and changes included in this release.</span>
           </div>
 
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Release Date</label>
             <input type="date" value={form.released_at} onChange={F('released_at')} style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 8, padding: '9px 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <span className="field-hint">The date this version is published or deployed to production.</span>
           </div>
         </div>
 

@@ -133,6 +133,38 @@ function TimerProgress({ req }) {
   );
 }
 
+// ── Status flow diagram ───────────────────────────────────────────────────────
+
+function StatusFlow({ currentStatus }) {
+  const STEPS = ['Open', 'In Progress', 'Review', 'Done'];
+  const currentIdx = STEPS.indexOf(currentStatus);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '10px 0 4px' }}>
+      {STEPS.map((s, i) => {
+        const isPast    = i < currentIdx;
+        const isCurrent = i === currentIdx;
+        const sc = STATUS_COLOR[s] || STATUS_COLOR['Open'];
+        return (
+          <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+            <span style={{
+              padding: '4px 13px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+              background: isCurrent ? sc.bg : isPast ? '#f0fdf4' : '#f8fafc',
+              color: isCurrent ? sc.color : isPast ? '#15803d' : '#94a3b8',
+              border: isCurrent ? `2px solid ${sc.color}` : isPast ? '1px solid #86efac' : '1px solid #e2e8f0',
+              whiteSpace: 'nowrap', transition: 'all .2s',
+            }}>
+              {isPast ? '✓ ' : isCurrent ? '● ' : ''}{s}
+            </span>
+            {i < STEPS.length - 1 && (
+              <span style={{ display: 'inline-block', width: 22, height: 2, background: i < currentIdx ? '#86efac' : '#e2e8f0', flexShrink: 0 }} />
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Locked tab placeholder ────────────────────────────────────────────────────
 
 function LockedTab({ label }) {
@@ -221,6 +253,8 @@ function SubItemForm({ reqId, sprints, users, onSaved, onCancel }) {
 
 function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDeleted, sprints, users, allReqs }) {
   const { user } = useAuth();
+  const isSM   = user?.role === 'Scrum Master';
+  const isLead = user?.is_lead === true;
 
   const [req, setReq] = useState(initialReq);
 
@@ -251,6 +285,9 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
   const [links, setLinks]       = useState([]);
 
   const [showSubForm, setShowSubForm] = useState(false);
+  const [subWlTarget, setSubWlTarget] = useState(null);
+  const [subWlForm,   setSubWlForm]   = useState({ hours: '', date: new Date().toISOString().slice(0,10), description: '' });
+  const [subWlBusy,   setSubWlBusy]   = useState(false);
   const [commentText, setCommentText]   = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -270,7 +307,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
     setDetailsErr('');
     setTab('details');
     setChildren([]); setComments([]); setWorklogs([]); setAtt([]); setLinks([]);
-    setCommentText(''); setLinkSearch(''); setShowSubForm(false);
+    setCommentText(''); setLinkSearch(''); setShowSubForm(false); setSubWlTarget(null);
     if (initialReq) loadAll(initialReq.id);
   }, [open, initialReq?.id]);
 
@@ -420,6 +457,17 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
     onUpdated();
   };
 
+  const submitSubWorklog = async (childId) => {
+    if (!subWlForm.hours || !subWlForm.date) return;
+    setSubWlBusy(true);
+    try {
+      await createReqWorklog(childId, { hours: parseFloat(subWlForm.hours), date: subWlForm.date, description: subWlForm.description });
+      setSubWlTarget(null);
+      setSubWlForm({ hours: '', date: new Date().toISOString().slice(0,10), description: '' });
+      onUpdated();
+    } finally { setSubWlBusy(false); }
+  };
+
   const handleDelete = async () => {
     if (!req) { onClose(); return; }
     await deleteRequirement(req.id);
@@ -439,6 +487,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
     { id: 'comments',    label: `Comments${comments.length     ? ` (${comments.length})`    : ''}`, locked: !saved },
     { id: 'links',       label: `Links${links.length           ? ` (${links.length})`        : ''}`, locked: !saved },
     { id: 'attachments', label: `Files${attachments.length     ? ` (${attachments.length})`  : ''}`, locked: !saved },
+    { id: 'activity',    label: 'Activity',                                                          locked: !saved },
   ];
 
   return (
@@ -492,8 +541,14 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
           )}
 
           {req && (req.start_date || req.end_date) && (
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 6 }}>
               <TimerProgress req={req} />
+            </div>
+          )}
+
+          {req && (
+            <div style={{ marginBottom: 8 }}>
+              <StatusFlow currentStatus={req.status} />
             </div>
           )}
 
@@ -541,6 +596,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
               <div>
                 <label style={labelSt}>Title *</label>
                 <input value={form.title} onChange={set('title')} placeholder="Item title" style={inputSt} autoFocus />
+                <span className="field-hint">A concise title for this item. E.g. "Add export to PDF for reports".</span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
@@ -549,18 +605,29 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                   <select value={form.item_type} onChange={set('item_type')} style={inputSt}>
                     {ITEM_TYPES.map(t => <option key={t}>{t}</option>)}
                   </select>
+                  <span className="field-hint">REQ=feature, Bug=defect, Task=dev work, QA=testing, Spike=research, TI=tech initiative.</span>
                 </div>
                 <div>
                   <label style={labelSt}>Priority</label>
                   <select value={form.priority} onChange={set('priority')} style={inputSt}>
                     {['Critical','High','Medium','Low'].map(p => <option key={p}>{p}</option>)}
                   </select>
+                  <span className="field-hint">Critical = blocking production; High = current sprint; Medium/Low = can be deferred.</span>
                 </div>
                 <div>
                   <label style={labelSt}>Status</label>
-                  <select value={form.status} onChange={set('status')} style={inputSt}>
-                    {['Open','In Progress','Review','Done'].map(s => <option key={s}>{s}</option>)}
-                  </select>
+                  {saved && req?.status === 'Done' && !isSM ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: '1.5px solid #86efac', borderRadius: 8, background: '#f0fdf4' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#15803d' }}>✅ Done</span>
+                      <span style={{ fontSize: 11, color: '#6b7280', flex: 1 }}>Only the Scrum Master can move this item back.</span>
+                      <span style={{ fontSize: 16 }}>🔒</span>
+                    </div>
+                  ) : (
+                    <select value={form.status} onChange={set('status')} style={inputSt}>
+                      {['Open','In Progress','Review','Done'].map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  )}
+                  <span className="field-hint">Current state of work. Move to "Done" only after review is complete.</span>
                 </div>
               </div>
 
@@ -571,14 +638,17 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                   <div>
                     <label style={labelSt}>Start Date <span style={{ color: '#dc2626' }}>*</span></label>
                     <input type="date" value={form.start_date} onChange={set('start_date')} style={inputSt} />
+                    <span className="field-hint">When work on this item begins.</span>
                   </div>
                   <div>
                     <label style={labelSt}>End Date <span style={{ color: '#dc2626' }}>*</span></label>
                     <input type="date" value={form.end_date} onChange={set('end_date')} style={inputSt} />
+                    <span className="field-hint">Expected completion. Overdue items will be flagged.</span>
                   </div>
                   <div>
                     <label style={labelSt}>Story Points</label>
                     <input type="number" min="1" max="99" value={form.story_points} onChange={set('story_points')} placeholder="e.g. 5" style={inputSt} />
+                    <span className="field-hint">Effort estimate (1–99). Counts toward sprint capacity.</span>
                   </div>
                 </div>
               </div>
@@ -590,6 +660,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                     <option value="">Unassigned</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>
+                  <span className="field-hint">The team member responsible for completing this item.</span>
                 </div>
                 <div>
                   <label style={labelSt}>Sprint</label>
@@ -597,6 +668,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                     <option value="">No Sprint</option>
                     {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
+                  <span className="field-hint">Assign to a sprint to include this item in sprint planning and tracking.</span>
                 </div>
               </div>
               <div>
@@ -604,6 +676,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                 <textarea value={form.description} onChange={set('description')} rows={4}
                   placeholder="Describe the item…"
                   style={{ ...inputSt, resize: 'vertical' }} />
+                <span className="field-hint">Detailed description: acceptance criteria, technical notes, or steps to reproduce (for bugs).</span>
               </div>
               <div>
                 <label style={labelSt}>Department</label>
@@ -611,6 +684,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                   <option value="">Select Department</option>
                   {['DSE','DEE','SS','MS','DGE','DPS','Other','Tech Initiatives'].map(d => <option key={d}>{d}</option>)}
                 </select>
+                <span className="field-hint">The department this item belongs to or is requested by.</span>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={saveDetails} disabled={detailsBusy || !form.title.trim()}
@@ -633,7 +707,7 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>Sub-Items ({children.length})</div>
-                  {!showSubForm && (
+                  {!showSubForm && (isSM || isLead) && (
                     <button onClick={() => setShowSubForm(true)}
                       style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>
                       + Add Sub-Item
@@ -667,10 +741,47 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                               </div>
                               <TimerBadge timerStatus={c.timer_status} daysRemaining={c.days_remaining} inline />
                               {c.assignee_name && <Avatar name={c.assignee_name} size={24} />}
+                              <button
+                                onClick={() => setSubWlTarget(prev => prev === c.id ? null : c.id)}
+                                style={{ padding: '3px 10px', borderRadius: 7, border: '1.5px solid var(--border)', background: subWlTarget === c.id ? 'var(--accent-light)' : 'white', color: subWlTarget === c.id ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                ⏱ Log Work
+                              </button>
                             </div>
                             {(c.start_date || c.end_date) && (
                               <div style={{ marginTop: 8 }}>
                                 <TimerProgress req={c} />
+                              </div>
+                            )}
+                            {subWlTarget === c.id && (
+                              <div style={{ marginTop: 10, background: 'var(--accent-light)', border: '1px solid var(--accent)', borderRadius: 9, padding: 12 }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}>Log Hours for: {c.title}</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '80px 130px 1fr auto', gap: 8, alignItems: 'end' }}>
+                                  <div>
+                                    <label style={{ ...labelSt, fontSize: 11 }}>Hours *</label>
+                                    <input type="number" min="0.25" step="0.25" value={subWlForm.hours}
+                                      onChange={e => setSubWlForm(f => ({ ...f, hours: e.target.value }))}
+                                      placeholder="2.5" style={{ ...inputSt, padding: '6px 8px' }} />
+                                  </div>
+                                  <div>
+                                    <label style={{ ...labelSt, fontSize: 11 }}>Date *</label>
+                                    <input type="date" value={subWlForm.date}
+                                      onChange={e => setSubWlForm(f => ({ ...f, date: e.target.value }))} style={{ ...inputSt, padding: '6px 8px' }} />
+                                  </div>
+                                  <div>
+                                    <label style={{ ...labelSt, fontSize: 11 }}>Notes</label>
+                                    <input value={subWlForm.description}
+                                      onChange={e => setSubWlForm(f => ({ ...f, description: e.target.value }))}
+                                      placeholder="What did you work on?" style={{ ...inputSt, padding: '6px 8px' }} />
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
+                                    <button onClick={() => submitSubWorklog(c.id)} disabled={subWlBusy || !subWlForm.hours}
+                                      style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>
+                                      {subWlBusy ? '…' : 'Save'}
+                                    </button>
+                                    <button onClick={() => setSubWlTarget(null)}
+                                      style={{ padding: '6px 10px', borderRadius: 7, border: '1.5px solid var(--border)', background: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>✕</button>
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -889,6 +1000,40 @@ function ReqModal({ open, initialReq = null, onClose, onCreated, onUpdated, onDe
                 }
               </div>
             ) : <LockedTab label="Attachments" />
+          )}
+
+          {/* Activity */}
+          {tab === 'activity' && (
+            saved ? (() => {
+              // Synthesise timeline from all loaded data
+              const events = [];
+              if (req.created_at) events.push({ type: 'created', ts: req.created_at, icon: '✨', text: 'Item created', secondary: req.assignee_name ? `Assigned to ${req.assignee_name}` : '' });
+              worklogs.forEach(w => events.push({ type: 'worklog', ts: w.created_at, icon: '⏱', text: `${w.user_name} logged ${parseFloat(w.hours).toFixed(1)}h`, secondary: w.description || '' }));
+              comments.forEach(c => events.push({ type: 'comment', ts: c.created_at, icon: '💬', text: `${c.author_name} commented`, secondary: c.text.slice(0, 80) + (c.text.length > 80 ? '…' : '') }));
+              attachments.forEach(a => events.push({ type: 'file', ts: a.created_at, icon: '📎', text: `${a.uploaded_by_name} attached ${a.filename}`, secondary: '' }));
+              events.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+              return (
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginBottom: 14 }}>History ({events.length} events)</div>
+                  {events.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text3)', fontSize: 13 }}>No activity yet.</div>
+                    : (
+                      <div style={{ position: 'relative', paddingLeft: 32 }}>
+                        <div style={{ position: 'absolute', left: 12, top: 0, bottom: 0, width: 2, background: 'var(--border)' }} />
+                        {events.map((ev, i) => (
+                          <div key={i} style={{ position: 'relative', marginBottom: 18 }}>
+                            <div style={{ position: 'absolute', left: -27, top: 2, width: 24, height: 24, borderRadius: '50%', background: ev.type === 'created' ? '#f0fdf4' : ev.type === 'worklog' ? '#eff6ff' : ev.type === 'comment' ? '#fdf4ff' : '#fff7ed', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>{ev.icon}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{ev.text}</div>
+                            {ev.secondary && <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2, fontStyle: ev.type === 'comment' ? 'italic' : 'normal' }}>{ev.secondary}</div>}
+                            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{timeAgo(ev.ts)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }
+                </div>
+              );
+            })() : <LockedTab label="Activity" />
           )}
 
         </div>
