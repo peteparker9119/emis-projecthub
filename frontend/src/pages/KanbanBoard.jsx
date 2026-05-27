@@ -40,6 +40,15 @@ const TIMER_CONFIG = {
 const ITEM_TYPES = ['REQ', 'Bug', 'Task', 'QA', 'Report', 'TI', 'Spike', 'Adhoc'];
 const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
 
+// Teams excluded from Capacity Tracker — shown in Kanban Board instead
+const KANBAN_TEAM_LIST = [
+  { key: 'do',  name: 'DevOps',                  icon: '⚙️', color: '#475569', bg: '#f8fafc' },
+  { key: 'nw',  name: 'Network',                 icon: '🌐', color: '#0284c7', bg: '#f0f9ff' },
+  { key: 'dt',  name: 'Data Team',               icon: '📊', color: '#7c3aed', bg: '#faf5ff' },
+  { key: 'ui',  name: 'UI',                      icon: '🎨', color: '#db2777', bg: '#fdf2f8' },
+  { key: 'rc',  name: 'Regional Coordinators',   icon: '🗺️', color: '#0d9488', bg: '#f0fdfa' },
+];
+
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
 function Chip({ label, color, bg, border }) {
@@ -87,8 +96,12 @@ export default function KanbanBoard() {
   const [filterAssignee, setFilterAssignee] = useState('');
   const [filterType,     setFilterType]     = useState('');
   const [filterPriority, setFilterPriority] = useState('');
+  const [filterTeams,    setFilterTeams]    = useState(KANBAN_TEAM_LIST.map(t => t.key)); // all kanban teams selected by default
   const [search,         setSearch]         = useState('');
   const [swimlane,       setSwimlane]       = useState('none'); // 'none' | 'assignee' | 'type'
+
+  const toggleKanbanTeam = (key) =>
+    setFilterTeams(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
 
   // DnD
   const [dragId,   setDragId]   = useState(null);
@@ -126,12 +139,20 @@ export default function KanbanBoard() {
 
   // ── Filtering ─────────────────────────────────────────────────────────────
 
+  // Build a set of user IDs belonging to selected kanban teams
+  const kanbanUserIds = new Set(
+    users.filter(u => filterTeams.includes(u.team)).map(u => u.id)
+  );
+
   const filtered = reqs.filter(r => {
     if (filterSprint   && String(r.sprint) !== filterSprint) return false;
     if (filterAssignee && String(r.assignee) !== filterAssignee) return false;
     if (filterType     && r.item_type !== filterType) return false;
     if (filterPriority && r.priority !== filterPriority) return false;
     if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !r.id.toLowerCase().includes(search.toLowerCase())) return false;
+    // Team filter: show only items assigned to members of selected kanban teams
+    // (unassigned items shown when no specific assignee filter is active)
+    if (filterTeams.length && r.assignee && !kanbanUserIds.has(r.assignee)) return false;
     return true;
   });
 
@@ -231,7 +252,7 @@ export default function KanbanBoard() {
         <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}
           style={{ padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
           <option value="">All Assignees</option>
-          {users.map(u => <option key={u.id} value={String(u.id)}>{u.name || u.email}</option>)}
+          {users.filter(u => filterTeams.includes(u.team)).map(u => <option key={u.id} value={String(u.id)}>{u.name || u.email}</option>)}
         </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)}
           style={{ padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
@@ -243,6 +264,26 @@ export default function KanbanBoard() {
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+
+        {/* Team chips */}
+        <div style={{ width: '100%', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginRight: 2 }}>Teams:</span>
+          {KANBAN_TEAM_LIST.map(t => {
+            const active = filterTeams.includes(t.key);
+            return (
+              <button key={t.key} onClick={() => toggleKanbanTeam(t.key)}
+                style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: active ? 700 : 500,
+                  border: `1.5px solid ${active ? t.color : 'var(--border)'}`,
+                  background: active ? t.bg : 'white',
+                  color: active ? t.color : 'var(--text2)',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
+                }}>
+                {t.icon} {t.name}
+              </button>
+            );
+          })}
+        </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>Swimlanes:</span>

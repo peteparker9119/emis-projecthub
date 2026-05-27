@@ -200,7 +200,7 @@ function AddEntryForm({ date, userId, onCreated, onCancel }) {
         <div>
           <label style={lStyle}>Title *</label>
           <input value={form.title} onChange={F('title')} placeholder="What did you work on?" style={iStyle} autoFocus />
-          <span className="field-hint">A brief summary of the activity. E.g. "Reviewed Sprint 13 backlog".</span>
+
         </div>
         <div>
           <label style={lStyle}>Category *</label>
@@ -219,7 +219,7 @@ function AddEntryForm({ date, userId, onCreated, onCancel }) {
       <div style={{ marginBottom: 14 }}>
         <label style={lStyle}>Description / Notes</label>
         <textarea value={form.description} onChange={F('description')} rows={3} placeholder="Add details, context, outcomes…" style={{ ...iStyle, resize: 'vertical' }} />
-        <span className="field-hint">Optional — add context, outcomes, links, or decisions made during this activity.</span>
+
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>

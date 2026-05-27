@@ -165,7 +165,7 @@ export default function Letters() {
         <div className="form-group">
           <label>Subject</label>
           <input className="form-control" placeholder="Letter subject…" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
-          <span className="field-hint">A clear, concise title for this letter.</span>
+
         </div>
         <div className="form-row">
           <div className="form-group">

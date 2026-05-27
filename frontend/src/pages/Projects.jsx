@@ -239,13 +239,13 @@ export default function Projects() {
           <label>Project Name *</label>
           <input className="form-control" placeholder="e.g. EMIS Mobile App" value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })} />
-          <span className="field-hint">A clear, unique name for this project.</span>
+
         </div>
         <div className="form-group">
           <label>Description</label>
           <textarea className="form-control" placeholder="What is this project about?" value={form.description}
             onChange={e => setForm({ ...form, description: e.target.value })} />
-          <span className="field-hint">Briefly describe the project's purpose and main goal.</span>
+
         </div>
         <div className="form-row">
           <div className="form-group">
@@ -253,13 +253,13 @@ export default function Projects() {
             <select className="form-control" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
               <option>Planning</option><option>Active</option><option>On Hold</option><option>Completed</option>
             </select>
-            <span className="field-hint">Start with "Planning", move to "Active" once work begins.</span>
+
           </div>
           <div className="form-group">
             <label>Team Number</label>
             <input type="number" className="form-control" placeholder="e.g. 3" value={form.team_number}
               onChange={e => setForm({ ...form, team_number: e.target.value })} />
-            <span className="field-hint">The team number assigned to this project (optional).</span>
+
           </div>
         </div>
         <div className="form-row">
@@ -267,18 +267,18 @@ export default function Projects() {
             <label>Start Date</label>
             <input type="date" className="form-control" value={form.start_date}
               onChange={e => setForm({ ...form, start_date: e.target.value })} />
-            <span className="field-hint">When work on this project begins.</span>
+
           </div>
           <div className="form-group">
             <label>End Date</label>
             <input type="date" className="form-control" value={form.end_date}
               onChange={e => setForm({ ...form, end_date: e.target.value })} />
-            <span className="field-hint">Target completion date for the project.</span>
+
           </div>
         </div>
         <div className="form-group">
           <label>Color</label>
-          <span className="field-hint">A color to visually identify this project in the list.</span>
+
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {PALETTE.map(c => (
               <div

@@ -11,18 +11,19 @@ import {
 
 /* ── PM Capacity breakdown stored in localStorage ──────────────────────── */
 /* ── Team configuration ─────────────────────────────────────────────────── */
+// Only dev teams participate in capacity planning / story points
+const DEV_TEAMS = ['cb', 'db', 'ts', 'tt'];
+
 const TEAM_NAMES = {
-  '3':  { name: 'Debuggers',     icon: '🐛', color: '#7c3aed', bg: '#f5f3ff' },
-  '5':  { name: 'Core Blasters', icon: '💥', color: '#059669', bg: '#ecfdf5' },
-  '11': { name: 'Tech Titans',   icon: '🏆', color: '#dc2626', bg: '#fef2f2' },
+  'cb': { name: 'Core Blasters', icon: '💥', color: '#059669', bg: '#ecfdf5' },
+  'db': { name: 'Debuggers',     icon: '🐛', color: '#7c3aed', bg: '#f5f3ff' },
+  'ts': { name: 'Tech Sparks',   icon: '⚡', color: '#d97706', bg: '#fffbeb' },
+  'tt': { name: 'Tech Titans',   icon: '🏆', color: '#dc2626', bg: '#fef2f2' },
 };
 
-// Which teams each PM sees in capacity tracker (keyed by PM user ID)
-// Manoj Kumar R (24): Debuggers + Core Blasters only (not Regional Coordinators)
-const PM_VISIBLE_TEAMS = {
-  24: ['3', '5'],
-  50: ['11'],
-};
+// PM_VISIBLE_TEAMS: restrict which teams a PM sees (keyed by user ID)
+// Leave empty — all PMs see their direct reports by default
+const PM_VISIBLE_TEAMS = {};
 
 const PM_BREAKDOWN_KEY = 'emisPMCapBreakdown';
 
@@ -1041,8 +1042,14 @@ export default function CapacityTracker() {
   const [loading,   setLoading]   = useState(false);
   const [leaveModal,   setLeaveModal]   = useState(null); // { user, leaves }
   const [clarifyModal, setClarifyModal] = useState(null); // { member, manager, statusLabel }
-  const [editSp,    setEditSp]    = useState({}); // { userId: value }
-  const [savingIds, setSavingIds] = useState(new Set());
+  const [editSp,        setEditSp]        = useState({}); // { userId: value }
+  const [savingIds,     setSavingIds]     = useState(new Set());
+  const [selectedTeams, setSelectedTeams] = useState(DEV_TEAMS); // default: all 4 dev teams
+
+  const toggleTeam = (key) =>
+    setSelectedTeams(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
 
   // Managers who have direct reports see the PM Breakdown view (team-scoped)
   // CTO sees the full standard table
@@ -1133,11 +1140,32 @@ export default function CapacityTracker() {
             </div>
           )}
           {tab === 'capacity' && (
-            <select value={sprintId} onChange={e => setSprintId(e.target.value)}
-              style={{ padding: '9px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', background: 'white', minWidth: 220, outline: 'none' }}>
-              <option value="">— Select sprint —</option>
-              {sprints.map(s => <option key={s.id} value={s.id}>{s.id} · {s.name} ({s.status})</option>)}
-            </select>
+            <>
+              <select value={sprintId} onChange={e => setSprintId(e.target.value)}
+                style={{ padding: '9px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', background: 'white', minWidth: 220, outline: 'none' }}>
+                <option value="">— Select sprint —</option>
+                {sprints.map(s => <option key={s.id} value={s.id}>{s.id} · {s.name} ({s.status})</option>)}
+              </select>
+              {/* Team selector chips */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {Object.entries(TEAM_NAMES).map(([key, info]) => {
+                  const active = selectedTeams.includes(key);
+                  return (
+                    <button key={key} onClick={() => toggleTeam(key)}
+                      style={{
+                        padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${active ? info.color : 'var(--border)'}`,
+                        background: active ? info.bg : 'white',
+                        color: active ? info.color : 'var(--text2)',
+                        fontWeight: active ? 700 : 500, fontSize: 12,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                        transition: 'all .15s',
+                      }}>
+                      {info.icon} {info.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -1202,7 +1230,7 @@ export default function CapacityTracker() {
       ) : (isCTO || isSM) ? (
         /* CTO / SM: team-grouped overview with clarification buttons */
         <TeamCapacityView
-          users={users}
+          users={selectedTeams.length ? users.filter(u => selectedTeams.includes(u.team)) : users}
           sprints={sprints}
           sprintId={sprintId}
           caps={caps}

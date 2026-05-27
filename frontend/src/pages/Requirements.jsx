@@ -1051,11 +1051,12 @@ export default function Requirements() {
   const [loading, setLoading]               = useState(true);
   const [search, setSearch]                 = useState('');
   const [filterStatus, setFilterStatus]     = useState('');
-  const [filterPriority, setFilterPriority] = useState('');
-  const [filterType, setFilterType]         = useState('');
+  const [filterPriority, setFilterPriority]   = useState('');
+  const [filterType, setFilterType]           = useState('');
+  const [filterGrooming, setFilterGrooming]   = useState('');
 
   const [modal, setModal] = useState(null);
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('board');
   const [dragId,   setDragId]   = useState(null);
   const [dragOver, setDragOver] = useState(null);
 
@@ -1102,6 +1103,7 @@ export default function Requirements() {
     if (filterStatus   && r.status    !== filterStatus)   return false;
     if (filterPriority && r.priority  !== filterPriority) return false;
     if (filterType     && r.item_type !== filterType)     return false;
+    if (filterGrooming && (r.grooming_status || 'pending') !== filterGrooming) return false;
     return true;
   });
 
@@ -1129,7 +1131,21 @@ export default function Requirements() {
       </div>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* View toggle — LEFT side */}
+        <div style={{ display: 'flex', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+          <button
+            onClick={() => setViewMode('list')}
+            title="List view"
+            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'list' ? 'var(--accent)' : 'white', color: viewMode === 'list' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit', borderRight: '1px solid var(--border)' }}
+          >☰</button>
+          <button
+            onClick={() => setViewMode('board')}
+            title="Grid view"
+            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'board' ? 'var(--accent)' : 'white', color: viewMode === 'board' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit' }}
+          >⊞</button>
+        </div>
+
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items…"
           style={{ flex: 1, minWidth: 180, padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }} />
         <select value={filterType} onChange={e => setFilterType(e.target.value)}
@@ -1147,23 +1163,21 @@ export default function Requirements() {
           <option value="">All Priorities</option>
           {['Critical','High','Medium','Low'].map(p => <option key={p}>{p}</option>)}
         </select>
+
+        {/* Grooming stage filter */}
+        <select value={filterGrooming} onChange={e => setFilterGrooming(e.target.value)}
+          style={{ padding: '8px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+          <option value="">All Grooming Stages</option>
+          <option value="pending">🔴 Pending</option>
+          <option value="attachments_ready">📎 Attachments Ready</option>
+          <option value="tl_reviewed">✅ TL Reviewed</option>
+          <option value="ready_for_sprint">🚀 Ready for Sprint</option>
+        </select>
+
         <button onClick={() => setModal({ req: null })}
           style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }}>
           + New Item
         </button>
-        {/* View toggle: list / board */}
-        <div style={{ display: 'flex', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
-          <button
-            onClick={() => setViewMode('list')}
-            title="List view"
-            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'list' ? 'var(--accent)' : 'white', color: viewMode === 'list' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit', borderRight: '1px solid var(--border)' }}
-          >☰</button>
-          <button
-            onClick={() => setViewMode('board')}
-            title="Board view"
-            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'board' ? 'var(--accent)' : 'white', color: viewMode === 'board' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit' }}
-          >⊞</button>
-        </div>
       </div>
 
       {/* List / Board */}

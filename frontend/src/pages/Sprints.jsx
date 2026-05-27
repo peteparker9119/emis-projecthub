@@ -512,7 +512,7 @@ export default function Sprints() {
             value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
           />
-          <span className="field-hint">A short sequential label for this iteration, e.g. "Sprint 14".</span>
+
         </div>
         <div className="form-row">
           <div className="form-group">
@@ -523,7 +523,7 @@ export default function Sprints() {
               value={form.start_date}
               onChange={e => setForm({ ...form, start_date: e.target.value })}
             />
-            <span className="field-hint">The date this sprint officially begins.</span>
+
           </div>
           <div className="form-group">
             <label>End Date</label>
@@ -533,7 +533,7 @@ export default function Sprints() {
               value={form.end_date}
               onChange={e => setForm({ ...form, end_date: e.target.value })}
             />
-            <span className="field-hint">Planned completion date — typically 1–2 weeks from start.</span>
+
           </div>
         </div>
         <div className="form-group">
@@ -544,7 +544,7 @@ export default function Sprints() {
             value={form.goal}
             onChange={e => setForm({ ...form, goal: e.target.value })}
           />
-          <span className="field-hint">Describe what the team aims to deliver. E.g. "Complete login and dashboard features".</span>
+
         </div>
         <div className="form-row">
           <div className="form-group">
@@ -568,7 +568,7 @@ export default function Sprints() {
               <option value="Active">Active</option>
               <option value="Completed">Completed</option>
             </select>
-            <span className="field-hint">Set to "Planning" when creating. Use the ▶ Start button on the sprint card to activate.</span>
+
           </div>
         </div>
       </Modal>
