@@ -1141,9 +1141,14 @@ export default function Requirements() {
           >☰</button>
           <button
             onClick={() => setViewMode('board')}
-            title="Grid view"
-            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'board' ? 'var(--accent)' : 'white', color: viewMode === 'board' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit' }}
+            title="Status board"
+            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'board' ? 'var(--accent)' : 'white', color: viewMode === 'board' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 15, fontFamily: 'inherit', borderRight: '1px solid var(--border)' }}
           >⊞</button>
+          <button
+            onClick={() => setViewMode('grooming')}
+            title="Grooming pipeline"
+            style={{ padding: '7px 12px', border: 'none', background: viewMode === 'grooming' ? 'var(--accent)' : 'white', color: viewMode === 'grooming' ? 'white' : 'var(--text2)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}
+          >⧖</button>
         </div>
 
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items…"
@@ -1164,15 +1169,17 @@ export default function Requirements() {
           {['Critical','High','Medium','Low'].map(p => <option key={p}>{p}</option>)}
         </select>
 
-        {/* Grooming stage filter */}
-        <select value={filterGrooming} onChange={e => setFilterGrooming(e.target.value)}
-          style={{ padding: '8px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
-          <option value="">All Grooming Stages</option>
-          <option value="pending">🔴 Pending</option>
-          <option value="attachments_ready">📎 Attachments Ready</option>
-          <option value="tl_reviewed">✅ TL Reviewed</option>
-          <option value="ready_for_sprint">🚀 Ready for Sprint</option>
-        </select>
+        {/* Grooming stage filter — hidden in grooming view (view already groups by stage) */}
+        {viewMode !== 'grooming' && (
+          <select value={filterGrooming} onChange={e => setFilterGrooming(e.target.value)}
+            style={{ padding: '8px 10px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+            <option value="">All Grooming</option>
+            <option value="pending">📎 Attachments Phase</option>
+            <option value="attachments_ready">👀 TL Review</option>
+            <option value="tl_reviewed">✅ PM Approval</option>
+            <option value="ready_for_sprint">🚀 In Sprint</option>
+          </select>
+        )}
 
         <button onClick={() => setModal({ req: null })}
           style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }}>
@@ -1238,7 +1245,7 @@ export default function Requirements() {
             })}
           </div>
         )
-      ) : (
+      ) : viewMode === 'board' ? (
         /* ── Kanban Board View ── */
         (() => {
           // Board uses all filters EXCEPT status (columns segment by status)
@@ -1322,8 +1329,8 @@ export default function Requirements() {
                               background: isDragging ? '#f1f5f9' : 'white',
                               border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
                               borderLeft: `3px solid ${pc.color}`,
-                              borderRadius: 10,
-                              padding: '10px 12px',
+                              borderRadius: 8,
+                              padding: '7px 9px',
                               cursor: isDragging ? 'grabbing' : 'grab',
                               opacity: isDragging ? 0.45 : 1,
                               transition: 'opacity .15s',
@@ -1331,18 +1338,18 @@ export default function Requirements() {
                             }}
                           >
                             {/* ID + timer badge row */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, gap: 6 }}>
-                              <span style={{ fontSize: 10, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.id}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 4 }}>
+                              <span style={{ fontSize: 9.5, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.id}</span>
                               <TimerBadge timerStatus={r.timer_status} daysRemaining={r.days_remaining} endDate={r.end_date} inline />
                             </div>
 
                             {/* Title */}
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                               {r.title}
                             </div>
 
                             {/* Chips row */}
-                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                               <Chip label={r.item_type || 'REQ'} color={itc.color} bg={itc.bg} border={itc.border} />
                               <Chip label={r.priority}            color={pc.color}  bg={pc.bg}  border={pc.border} />
                               {r.story_points && <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>{r.story_points}SP</span>}
@@ -1350,17 +1357,146 @@ export default function Requirements() {
 
                             {/* Assignee + counters */}
                             {(r.assignee_name || r.children_count > 0 || r.comment_count > 0) && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
                                 {r.assignee_name && (
-                                  <span style={{ fontSize: 10.5, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                    <Avatar name={r.assignee_name} size={18} />
-                                    <span style={{ maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.assignee_name.split(' ')[0]}</span>
+                                  <span style={{ fontSize: 10, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <Avatar name={r.assignee_name} size={16} />
+                                    <span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.assignee_name.split(' ')[0]}</span>
                                   </span>
                                 )}
                                 {r.children_count > 0 && <span style={{ fontSize: 10, color: 'var(--text3)' }}>📋 {r.children_count}</span>}
                                 {r.comment_count  > 0 && <span style={{ fontSize: 10, color: 'var(--text3)' }}>💬 {r.comment_count}</span>}
                               </div>
                             )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()
+      ) : (
+        /* ── Grooming Pipeline View ── */
+        (() => {
+          const GROOMING_COLS = [
+            { key: 'pending',           label: 'Attachments Phase', icon: '📎', headerBg: '#fef9c3', headerColor: '#854d0e', borderColor: '#fde047' },
+            { key: 'attachments_ready', label: 'TL Review',         icon: '👀', headerBg: '#eff6ff', headerColor: '#1e40af', borderColor: '#93c5fd' },
+            { key: 'tl_reviewed',       label: 'PM Approval',       icon: '✅', headerBg: '#f3e8ff', headerColor: '#6b21a8', borderColor: '#d8b4fe' },
+            { key: 'ready_for_sprint',  label: 'In Sprint',         icon: '🚀', headerBg: '#dcfce7', headerColor: '#15803d', borderColor: '#86efac' },
+          ];
+
+          const groomItems = reqs.filter(r => {
+            if (r.parent) return false;
+            if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !r.id.toLowerCase().includes(search.toLowerCase())) return false;
+            if (filterStatus   && r.status    !== filterStatus)   return false;
+            if (filterPriority && r.priority  !== filterPriority) return false;
+            if (filterType     && r.item_type !== filterType)     return false;
+            return true;
+          });
+
+          const handleGroomDrop = async (colKey) => {
+            if (!dragId) return;
+            const item = reqs.find(r => r.id === dragId);
+            if (!item || (item.grooming_status || 'pending') === colKey) { setDragId(null); setDragOver(null); return; }
+            try {
+              await updateRequirement(dragId, { grooming_status: colKey });
+              await refresh();
+            } catch {}
+            setDragId(null);
+            setDragOver(null);
+          };
+
+          return (
+            <div className="anim-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, alignItems: 'start' }}>
+              {GROOMING_COLS.map(col => {
+                const colItems = groomItems.filter(r => (r.grooming_status || 'pending') === col.key);
+                const isOver = dragOver === col.key;
+                return (
+                  <div
+                    key={col.key}
+                    onDragOver={e => { e.preventDefault(); setDragOver(col.key); }}
+                    onDragEnter={e => { e.preventDefault(); setDragOver(col.key); }}
+                    onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
+                    onDrop={e => { e.preventDefault(); handleGroomDrop(col.key); }}
+                    style={{
+                      background: isOver ? col.headerBg : 'var(--surface)',
+                      border: `2px solid ${isOver ? col.borderColor : 'var(--border)'}`,
+                      borderRadius: 14,
+                      minHeight: 200,
+                      transition: 'border-color .15s, background .15s',
+                      overflow: 'hidden',
+                    }}>
+                    {/* Column header */}
+                    <div style={{ background: col.headerBg, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 800, color: col.headerColor }}>{col.icon} {col.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: col.headerColor, background: 'rgba(255,255,255,.6)', borderRadius: 20, padding: '2px 8px' }}>{colItems.length}</span>
+                    </div>
+
+                    {/* Cards */}
+                    <div className="anim-list" style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '8px 8px 10px' }}>
+                      {colItems.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 12, fontStyle: 'italic' }}>
+                          {isOver ? '⬇ Drop here' : 'No items'}
+                        </div>
+                      )}
+                      {colItems.map(r => {
+                        const pc  = PRIORITY_COLOR[r.priority]   || PRIORITY_COLOR.Medium;
+                        const sc  = STATUS_COLOR[r.status]        || STATUS_COLOR['Open'];
+                        const itc = ITEM_TYPE_COLOR[r.item_type] || ITEM_TYPE_COLOR.REQ;
+                        const isDragging = dragId === r.id;
+                        return (
+                          <div
+                            key={r.id}
+                            draggable
+                            onDragStart={() => setDragId(r.id)}
+                            onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                            onClick={() => setModal({ req: r })}
+                            className="card-lift"
+                            style={{
+                              background: isDragging ? '#f1f5f9' : 'white',
+                              border: `1px solid ${r.timer_status === 'breached' ? '#fca5a5' : 'var(--border)'}`,
+                              borderLeft: `3px solid ${pc.color}`,
+                              borderRadius: 8,
+                              padding: '7px 9px',
+                              cursor: isDragging ? 'grabbing' : 'grab',
+                              opacity: isDragging ? 0.45 : 1,
+                              transition: 'opacity .15s',
+                              userSelect: 'none',
+                            }}
+                          >
+                            {/* ID + status chip */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 4 }}>
+                              <span style={{ fontSize: 9.5, fontFamily: 'DM Mono, monospace', color: 'var(--text3)', flexShrink: 0 }}>{r.id}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>{r.status}</span>
+                            </div>
+
+                            {/* Title */}
+                            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {r.title}
+                            </div>
+
+                            {/* Sprint info */}
+                            {r.sprint_name && (
+                              <div style={{ fontSize: 10.5, color: 'var(--accent)', fontWeight: 600, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                🏃 {r.sprint_name}
+                              </div>
+                            )}
+
+                            {/* Chips + assignee */}
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                              <Chip label={r.item_type || 'REQ'} color={itc.color} bg={itc.bg} border={itc.border} />
+                              <Chip label={r.priority}            color={pc.color}  bg={pc.bg}  border={pc.border} />
+                              {r.story_points && <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>{r.story_points}SP</span>}
+                              {r.assignee_name && (
+                                <span style={{ fontSize: 10, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}>
+                                  <Avatar name={r.assignee_name} size={16} />
+                                  <span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.assignee_name.split(' ')[0]}</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
